@@ -2,11 +2,16 @@
 
 import { useMap } from "react-leaflet";
 
-export default function LocateButton() {
-  const map = useMap(); // 💡 ดึงคำสั่งควบคุมแผนที่มาใช้
+// 1. เพิ่มบรรทัดนี้เพื่อกำหนดว่าปุ่มนี้ต้องรับฟังก์ชันส่งค่ากลับ
+interface LocateButtonProps {
+  onLocationFound: (location: [number, number]) => void;
+}
+
+// 2. ใส่ { onLocationFound } ในวงเล็บฟังก์ชัน
+export default function LocateButton({ onLocationFound }: LocateButtonProps) {
+  const map = useMap();
 
   const handleLocate = () => {
-    // 💡 ใช้ Geolocation API ของ Browser
     if (!navigator.geolocation) {
       alert("เบราว์เซอร์ของคุณไม่รองรับการระบุตำแหน่งครับ");
       return;
@@ -15,7 +20,12 @@ export default function LocateButton() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        map.flyTo([latitude, longitude], 16, {
+        const coords: [number, number] = [latitude, longitude];
+
+        // 3. เรียกใช้ฟังก์ชันส่งค่าพิกัดกลับไปที่หน้า Map
+        onLocationFound(coords);
+
+        map.flyTo(coords, 16, {
           animate: true,
           duration: 1.5,
         });
@@ -30,12 +40,12 @@ export default function LocateButton() {
     <div 
       style={{
         position: 'absolute',
-        bottom: '16px',    // 📍 ระยะจากขอบล่าง (ปรับได้ตามชอบ)
-        left: '16px',      // 📍 ระยะจากขอบซ้าย
+        bottom: '16px',
+        left: '16px',
         zIndex: 1000,
         display: 'inline-flex',
         height: '38px',
-        width: '38px',     // บังคับเป็นวงกลม (padding 8 + icon 24 + padding 8)
+        width: '38px',
         padding: '8px',
         alignItems: 'center',
         justifyContent: 'center',
@@ -47,7 +57,6 @@ export default function LocateButton() {
       }}
       onClick={handleLocate}
     >
-      {/* 🎨 SVG จาก Figma ของคุณ */}
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="7" stroke="#5180CE" stroke-width="2"/>
         <circle cx="12" cy="12" r="2" fill="#5180CE" stroke="#5180CE" stroke-width="2"/>
