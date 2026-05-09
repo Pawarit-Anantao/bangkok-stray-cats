@@ -1,0 +1,61 @@
+"use client";
+
+import { useMap } from "react-leaflet";
+
+export default function LocateButton() {
+  const map = useMap(); // 💡 ดึงคำสั่งควบคุมแผนที่มาใช้
+
+  const handleLocate = () => {
+    // 💡 ใช้ Geolocation API ของ Browser
+    if (!navigator.geolocation) {
+      alert("เบราว์เซอร์ของคุณไม่รองรับการระบุตำแหน่งครับ");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        map.flyTo([latitude, longitude], 16, {
+          animate: true,
+          duration: 1.5,
+        });
+      },
+      () => {
+        alert("ไม่สามารถเข้าถึงตำแหน่งของคุณได้ โปรดเช็คการตั้งค่าสิทธิ์ครับ");
+      }
+    );
+  };
+
+  return (
+    <div 
+      style={{
+        position: 'absolute',
+        bottom: '16px',    // 📍 ระยะจากขอบล่าง (ปรับได้ตามชอบ)
+        left: '16px',      // 📍 ระยะจากขอบซ้าย
+        zIndex: 1000,
+        display: 'inline-flex',
+        height: '38px',
+        width: '38px',     // บังคับเป็นวงกลม (padding 8 + icon 24 + padding 8)
+        padding: '8px',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '99px',
+        background: '#FFF',
+        boxShadow: '0 0 8px 0 rgba(0, 0, 0, 0.60)',
+        cursor: 'pointer',
+        border: 'none',
+      }}
+      onClick={handleLocate}
+    >
+      {/* 🎨 SVG จาก Figma ของคุณ */}
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="7" stroke="#5180CE" stroke-width="2"/>
+        <circle cx="12" cy="12" r="2" fill="#5180CE" stroke="#5180CE" stroke-width="2"/>
+        <path d="M12 5V3" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
+        <path d="M19 12L21 12" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
+        <path d="M12 21L12 19" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
+        <path d="M3 12H5" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+  );
+}

@@ -23,7 +23,7 @@ export default function NavigationBar({
         paddingBottom: "2px"
       }}
     >
-      <div className="flex items-center justify-between w-[86%] max-w-[335px] mx-auto">
+      <div className="mx-auto flex w-[86%] max-w-full shrink-0 items-center justify-between gap-2 px-3 sm:px-0 md:max-w-[335px]">
         <MenuButton onClick={onMenuClick} isOpen={isMenuOpen} />
         <div className="flex shrink-0 w-[102px] h-[54px]">
           <Image 
