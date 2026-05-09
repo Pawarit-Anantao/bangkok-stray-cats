@@ -2,12 +2,11 @@
 
 import { useMap } from "react-leaflet";
 
-// 1. เพิ่มบรรทัดนี้เพื่อกำหนดว่าปุ่มนี้ต้องรับฟังก์ชันส่งค่ากลับ
+// 💡 กำหนด Props ที่ต้องรับ
 interface LocateButtonProps {
   onLocationFound: (location: [number, number]) => void;
 }
 
-// 2. ใส่ { onLocationFound } ในวงเล็บฟังก์ชัน
 export default function LocateButton({ onLocationFound }: LocateButtonProps) {
   const map = useMap();
 
@@ -22,7 +21,7 @@ export default function LocateButton({ onLocationFound }: LocateButtonProps) {
         const { latitude, longitude } = position.coords;
         const coords: [number, number] = [latitude, longitude];
 
-        // 3. เรียกใช้ฟังก์ชันส่งค่าพิกัดกลับไปที่หน้า Map
+        // 💡 ส่งพิกัดกลับไปที่หน้า Map
         onLocationFound(coords);
 
         map.flyTo(coords, 16, {
@@ -32,7 +31,8 @@ export default function LocateButton({ onLocationFound }: LocateButtonProps) {
       },
       () => {
         alert("ไม่สามารถเข้าถึงตำแหน่งของคุณได้ โปรดเช็คการตั้งค่าสิทธิ์ครับ");
-      }
+      },
+      { enableHighAccuracy: true } // 💡 ช่วยให้ตำแหน่งแม่นยำขึ้น
     );
   };
 

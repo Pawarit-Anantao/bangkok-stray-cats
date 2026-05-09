@@ -1,10 +1,27 @@
 "use client";
 
-import { useState } from "react"; // 💡 เพิ่ม useState
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import LocateButton from "./components/LocateButton";
+
+// 💡 1. เพิ่ม Interface เพื่อรับ Props จากหน้าอื่น (เช่น หน้า /add)
+interface MapProps {
+  isPickerMode?: boolean;
+  onCenterChange?: (coords: { lat: number; lng: number }) => void;
+}
+
+// 💡 2. ตัวช่วยคอยจับพิกัดกลางจอเมื่อมีการเลื่อนแผนที่
+function CenterTracker({ onCenterChange }: { onCenterChange: (c: { lat: number; lng: number }) => void }) {
+  const map = useMapEvents({
+    move() {
+      const center = map.getCenter();
+      onCenterChange({ lat: center.lat, lng: center.lng });
+    },
+  });
+  return null;
+}
 
 // หมุด Figma สำหรับตัวผู้ใช้ (User Location)
 const figmaPinIcon = L.divIcon({
@@ -31,10 +48,9 @@ const customIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-export default function Map() {
+// 💡 3. เพิ่ม props เข้ามาใน Function Map
+export default function Map({ isPickerMode = false, onCenterChange }: MapProps) {
   const startingPosition: [number, number] = [13.7649, 100.5383];
-  
-  // 💡 สร้าง State เก็บตำแหน่งผู้ใช้
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
 
   return (
@@ -44,26 +60,33 @@ export default function Map() {
         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       />
 
-      {/* 💡 ส่งฟังก์ชัน setUserPosition ไปให้ปุ่ม */}
+      {/* 💡 4. ถ้าอยู่ในโหมดเลือกตำแหน่ง ให้เปิดตัว CenterTracker */}
+      {isPickerMode && onCenterChange && (
+        <CenterTracker onCenterChange={onCenterChange} />
+      )}
+
+      {/* ปุ่มหาตำแหน่งผู้ใช้ (โชว์ตลอด หรือจะปิดตอน Picker Mode ก็ได้ครับ) */}
       <LocateButton onLocationFound={setUserPosition} />
 
-      {/* 💡 วาดหมุดเมื่อเจอตำแหน่งผู้ใช้ */}
+      {/* วาดหมุดเมื่อเจอตำแหน่งผู้ใช้ */}
       {userPosition && (
         <Marker position={userPosition} icon={figmaPinIcon}>
           <Popup>
-            <div className="text-center font-thai">คุณอยู่ที่นี่! 🎯</div>
+            <div className="text-center font-thai">คุณอยู่ตรงนี้</div>
           </Popup>
         </Marker>
       )}
 
-      {/* หมุดน้องแมว (ตัวอย่างเดิม) */}
-      <Marker position={startingPosition} icon={customIcon}>
-        <Popup>
-          <div className="text-center font-thai">
-            <b className="text-base text-[#FF146E]">น้องแมวอยู่แถวนี้! 🐈</b>
-          </div>
-        </Popup>
-      </Marker>
+      {/* หมุดน้องแมว (ตัวอย่างเดิม - จะโชว์เฉพาะตอน "ไม่" ได้ปักหมุดใหม่) */}
+      {!isPickerMode && (
+        <Marker position={startingPosition} icon={customIcon}>
+          <Popup>
+            <div className="text-center font-thai">
+              <b className="text-base text-[#FF146E]">น้องแมวอยู่แถวนี้! 🐈</b>
+            </div>
+          </Popup>
+        </Marker>
+      )}
     </MapContainer>
   );
 }
