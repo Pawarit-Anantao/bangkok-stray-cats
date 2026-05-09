@@ -1,13 +1,21 @@
-// src/app/page.tsx
-import NavigationBar from "./components/NavigationBar";
+import SightingInfoBox, { type CatLocationData } from "./components/SightingInfoBox";
+
+const PLACEHOLDER_SIGHTING: CatLocationData = {
+  id: "demo-1",
+  district: "ราชเทวี",
+  fullAddress: "ถนนเพชรบุรี, แขวงมักกะสัน เขตราชเทวี",
+};
+
 export default function Home() {
   return (
-    <main className="flex-1 relative flex flex-col overflow-hidden">
-      {/* ลองเปลี่ยนเป็น true หรือ false เพื่อดูความเปลี่ยนแปลงในมือถือครับ */}
-      <NavigationBar isLoggedIn={false} />      
-      <div className="flex-1 bg-gray-200 flex items-center justify-center text-gray-400">
-        แผนที่ Leaflet
+    <div className="flex flex-col w-full h-full flex-1">
+      <div className="w-full h-[300px] bg-[#F5F0E6] border-b-2 border-black flex items-center justify-center">
+        <span className="text-gray-500 font-bold">[ พื้นที่แผนที่ ]</span>
       </div>
-    </main>
+
+      <div className="w-full flex flex-col p-4 bg-[#F5F0E6]">
+        <SightingInfoBox sightingData={PLACEHOLDER_SIGHTING} />
+      </div>
+    </div>
   );
 }
