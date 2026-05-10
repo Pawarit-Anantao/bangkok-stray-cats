@@ -10,7 +10,7 @@ import MapHandle from "../components/MapHandle";
 import Button from "../components/Button";
 import FormField from "./components/FormField";
 import LocationDisplay from "./components/LocationDisplay";
-import PhotoUploader from "./components/PhotoUploader";
+import PhotoUploader from "./components/CatPhotoUploader";
 import AttributeSection from "./components/attributes";
 
 const MAP_HEIGHTS = ["60dvh", "25dvh", "2px"];
