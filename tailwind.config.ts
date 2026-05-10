@@ -21,6 +21,7 @@ const config: Config = {
       },
       fontFamily: {
         'noto-looped': ['"Noto Sans Thai Looped"', 'sans-serif'],
+        bebas: ["var(--font-bebas)", "sans-serif"],
       }
     },
   },
