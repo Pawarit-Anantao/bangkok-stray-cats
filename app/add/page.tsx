@@ -23,12 +23,12 @@ const Map = dynamic(() => import("../components/Map"), {
 export default function AddCatPage() {
   const router = useRouter();
   
-  // --- 📝 States สำหรับ UI แผนที่ ---
+  // --- 📝 States สำหรับ UI และแผนที่ ---
   const [mapState, setMapState] = useState(0); 
   const [center, setCenter] = useState({ lat: 13.7649, lng: 100.5383 });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- 📝 States สำหรับข้อมูลแมว (ยกมาไว้ที่นี่เพื่อให้ handleSubmit เห็น) ---
+  // --- 📝 States สำหรับข้อมูลแมว (Lifting State Up) ---
   const [catName, setCatName] = useState("");
   const [catInfo, setCatInfo] = useState("");      // รายละเอียดลักษณะเพิ่มเติม
   const [healthInfo, setHealthInfo] = useState(""); // รายละเอียดด้านสุขภาพ
@@ -37,7 +37,9 @@ export default function AddCatPage() {
   const [selectedTags, setSelectedTags] = useState<{ [key: string]: string[] }>({
     pattern: [], color: [], fur_length: [], size: [], gender: [], health: []
   });
-  const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]); // สำหรับรูปภาพ
+  
+  // ✨ เก็บสะสม URL รูปภาพ (สูงสุด 3 รูป)
+  const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
 
   // --- 📝 ดึงข้อมูล Tags จาก DB ---
   const [allTags, setAllTags] = useState<any[]>([]);
@@ -56,6 +58,30 @@ export default function AddCatPage() {
     fetchTags();
   }, []);
 
+  // --- 🗑️ ฟังก์ชันลบรูปภาพ ---
+  const handleDeletePhoto = async (index: number, url: string) => {
+    try {
+      // 1. ดึงชื่อไฟล์จาก URL (ลบ query params ออกถ้ามี)
+      const fileName = url.split('/').pop()?.split('?')[0];
+      
+      if (fileName) {
+        // 2. ลบไฟล์ออกจาก Supabase Storage
+        const { error } = await supabase.storage
+          .from('cats')
+          .remove([`cat-photos/${fileName}`]);
+        
+        if (error) throw error;
+      }
+
+      // 3. ลบออกจาก State เพื่ออัปเดต UI
+      setUploadedPhotoUrls(prev => prev.filter((_, i) => i !== index));
+      
+    } catch (error: any) {
+      console.error("Error deleting photo:", error);
+      alert("ไม่สามารถลบรูปภาพได้: " + error.message);
+    }
+  };
+
   // --- 🚀 ฟังก์ชันบันทึกข้อมูล (handleSubmit) ---
   const handleSubmit = async () => {
     if (isSubmitting) return;
@@ -63,23 +89,21 @@ export default function AddCatPage() {
     try {
       setIsSubmitting(true);
       
-      // 0. ตรวจสอบ User
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("กรุณาเข้าสู่ระบบก่อนบันทึกข้อมูล");
         return;
       }
 
-      // Helper ดึงค่าแรกของแต่ละหมวด (เพราะ DB ตาราง cats เก็บ 1 คอลัมน์ต่อ 1 ค่า)
       const getFirstTag = (catKey: string) => selectedTags[catKey]?.[0] || 'unknown';
 
-      // 1. INSERT ลงตาราง public.cats
+      // 1. INSERT ลงตาราง cats
       const { data: newCat, error: catError } = await supabase
         .from('cats')
         .insert({
           name: catName || "น้องแมวไม่มีชื่อ",
-          description: extraInfo,           // คำอธิบายเพิ่มเติม
-          identifying_marks: catInfo,       // รายละเอียดลักษณะ
+          description: extraInfo,
+          identifying_marks: catInfo,
           lat: center.lat,
           lng: center.lng,
           pattern: getFirstTag('pattern'),
@@ -88,7 +112,11 @@ export default function AddCatPage() {
           size: getFirstTag('size'),
           gender: getFirstTag('gender'),
           added_by: user.id,
-          last_aggression_score: aggressiveness ? parseInt(aggressiveness === 'very_friendly' ? '1' : aggressiveness === 'fierce' ? '5' : '3') : null,
+          last_aggression_score: aggressiveness ? 
+            (aggressiveness === 'very_friendly' ? 1 : 
+             aggressiveness === 'chill' ? 2 : 
+             aggressiveness === 'normal' ? 3 : 
+             aggressiveness === 'timid' ? 4 : 5) : null,
           last_health_note: healthInfo
         })
         .select()
@@ -96,7 +124,7 @@ export default function AddCatPage() {
 
       if (catError) throw catError;
 
-      // 2. INSERT ลงตาราง public.cat_sightings (บันทึกประวัติครั้งแรก)
+      // 2. INSERT ลงตาราง cat_sightings
       const { data: newSighting, error: sightingError } = await supabase
         .from('cat_sightings')
         .insert({
@@ -114,23 +142,22 @@ export default function AddCatPage() {
 
       if (sightingError) throw sightingError;
 
-      // 3. INSERT Health Tags (ถ้ามี)
+      // 3. INSERT Health Tags
       const healthTags = selectedTags['health'] || [];
       if (healthTags.length > 0) {
         const healthEntries = healthTags.map(tagKey => ({
           sighting_id: newSighting.id,
           tag_key: tagKey
         }));
-        const { error: hError } = await supabase.from('sighting_health_tags').insert(healthEntries);
-        if (hError) throw hError;
+        await supabase.from('sighting_health_tags').insert(healthEntries);
       }
 
-      // 4. INSERT รูปภาพ (ถ้ามี)
+      // 4. INSERT รูปภาพ
       if (uploadedPhotoUrls.length > 0) {
         const photoEntries = uploadedPhotoUrls.map((url, idx) => ({
           cat_id: newCat.id,
           public_url: url,
-          storage_path: `cats/${newCat.id}/${idx}`,
+          storage_path: `cat-photos/${url.split('/').pop()?.split('?')[0]}`,
           is_primary: idx === 0,
           uploaded_by: user.id
         }));
@@ -138,7 +165,7 @@ export default function AddCatPage() {
       }
 
       alert("บันทึกข้อมูลน้องแมวเรียบร้อยแล้ว! 🐾");
-      router.push(`/cat/${newCat.id}`); // ย้ายไปหน้าโปรไฟล์แมว
+      router.push(`/cat/${newCat.id}`);
 
     } catch (err: any) {
       console.error(err);
@@ -170,8 +197,28 @@ export default function AddCatPage() {
           <div style={formFieldsWrapper}>
             <LocationDisplay lat={center.lat} lng={center.lng} />
             
-            {/* ส่ง callback เพื่อรับ URL รูปภาพหลังจากอัปโหลดสำเร็จ */}
-            <PhotoUploader onUploadComplete={(urls: string[]) => setUploadedPhotoUrls(urls)} />
+            <PhotoUploader 
+              currentCount={uploadedPhotoUrls.length}
+              onUploadComplete={(urls) => setUploadedPhotoUrls(prev => [...prev, ...urls])} 
+            />
+
+            {/* ✨ ปรับปรุงส่วนแสดงพรีวิวรูปภาพให้มีปุ่มลบ */}
+            {uploadedPhotoUrls.length > 0 && (
+              <div style={imagePreviewListStyle}>
+                {uploadedPhotoUrls.map((url, i) => (
+                  <div key={i} style={{ position: 'relative' }}>
+                    <img src={url} style={smallPreviewStyle} alt="cat preview" />
+                    <button
+                      onClick={() => handleDeletePhoto(i, url)}
+                      style={deleteBtnStyle}
+                      title="ลบรูปภาพ"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <FormField label="ชื่อน้องแมว (ถ้ามี)">
               <input 
@@ -180,7 +227,6 @@ export default function AddCatPage() {
               />
             </FormField>
 
-            {/* ✨ ส่ง States ทั้งหมดลงไปให้ AttributeSection */}
             <AttributeSection 
               allTags={allTags} 
               selectedTags={selectedTags}
@@ -197,14 +243,8 @@ export default function AddCatPage() {
           </div>
 
           <div style={buttonGroupContainer}>
-            <Button variant="ghost" onClick={() => router.back()} style={{ flex: 1, minWidth: '0' }}>
-              ยกเลิก
-            </Button>
-            <Button 
-              onClick={handleSubmit} 
-              disabled={isSubmitting}
-              style={{ flex: 1, minWidth: '0' }}
-            >
+            <Button variant="ghost" onClick={() => router.back()} style={{ flex: 1 }}>ยกเลิก</Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting} style={{ flex: 1 }}>
               {isSubmitting ? "กำลังบันทึก..." : "ยืนยัน"}
             </Button>
           </div>
@@ -214,7 +254,43 @@ export default function AddCatPage() {
   );
 }
 
-// --- 💡 Styles Object (คงเดิมตามที่คุณส่งมา) ---
+// --- 🎨 Styles เพิ่มเติมสำหรับระบบลบรูป ---
+const imagePreviewListStyle: React.CSSProperties = { 
+  display: 'flex', 
+  gap: '12px', 
+  marginTop: '-10px', 
+  flexWrap: 'wrap' 
+};
+
+const smallPreviewStyle: React.CSSProperties = { 
+  width: '70px', 
+  height: '70px', 
+  borderRadius: '12px', 
+  objectFit: 'cover', 
+  border: '1.5px solid #D2CCBB' 
+};
+
+const deleteBtnStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '-6px',
+  right: '-6px',
+  width: '22px',
+  height: '22px',
+  borderRadius: '50%',
+  background: '#F44336',
+  color: 'white',
+  border: '2px solid white',
+  fontSize: '11px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+  padding: 0,
+  lineHeight: 1
+};
+
+// --- 💡 Styles เดิม ---
 const mainLayout: React.CSSProperties = { display: 'flex', flexDirection: 'column', width: '100%', height: '100dvh', overflow: 'hidden', backgroundColor: '#F5F0E6' };
 const mapWrapper: React.CSSProperties = { position: 'relative', width: '100%', transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)', zIndex: 10, backgroundColor: '#E8E4D9', flexShrink: 0, overflow: 'visible' };
 const contentWrapper: React.CSSProperties = { flex: 1, padding: '40px 20px 24px 20px', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center' };
