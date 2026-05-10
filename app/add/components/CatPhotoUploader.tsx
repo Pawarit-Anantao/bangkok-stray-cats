@@ -3,13 +3,17 @@
 import React, { useRef, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 
-// ✨ กำหนด Interface ให้ชัดเจน
-interface CatPhotoUploaderProps {
+// 1. ✨ กำหนด Interface ให้ชัดเจน (แนะนำให้ใส่ export ไว้ด้วยกันพลาด)
+export interface CatPhotoUploaderProps {
   onUploadComplete: (urls: string[]) => void;
   currentCount: number; 
 }
 
-export default function CatPhotoUploader({ onUploadComplete, currentCount }: CatPhotoUploaderProps) {
+// 2. ✨ ใช้ React.FC เพื่อกำจัดปัญหา IntrinsicAttributes ในบางกรณี
+const CatPhotoUploader: React.FC<CatPhotoUploaderProps> = ({ 
+  onUploadComplete, 
+  currentCount 
+}) => {
   const FONT_VARIABLE = "var(--font-noto-looped), sans-serif";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -58,7 +62,8 @@ export default function CatPhotoUploader({ onUploadComplete, currentCount }: Cat
       // ✨ ส่งกลับไปหาแม่ (AddCatPage)
       onUploadComplete([publicUrl]);
       
-      event.target.value = "";
+      // ล้างค่าเพื่อให้เลือกไฟล์เดิมซ้ำได้ถ้ามีการลบออก
+      if (fileInputRef.current) fileInputRef.current.value = "";
 
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -107,9 +112,11 @@ export default function CatPhotoUploader({ onUploadComplete, currentCount }: Cat
       </div>
     </div>
   );
-}
+};
 
-// --- 🎨 Styles ---
+export default CatPhotoUploader;
+
+// --- 🎨 Styles (คงเดิม) ---
 const FONT_FAMILY = "var(--font-noto-looped), sans-serif";
 const containerStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', maxWidth: '334px', margin: '0 auto', boxSizing: 'border-box' };
 const labelWrapperStyle: React.CSSProperties = { display: 'flex', width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' };

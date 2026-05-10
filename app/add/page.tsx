@@ -10,7 +10,8 @@ import MapHandle from "../components/MapHandle";
 import Button from "../components/Button";
 import FormField from "./components/FormField";
 import LocationDisplay from "./components/LocationDisplay";
-import PhotoUploader from "./components/CatPhotoUploader";
+// ✨ บรรทัดนี้สำคัญมาก: ต้องมั่นใจว่าไฟล์ปลายทางชื่อ CatPhotoUploader.tsx เป๊ะๆ
+import CatPhotoUploader from "./components/CatPhotoUploader";
 import AttributeSection from "./components/attributes";
 
 const MAP_HEIGHTS = ["60dvh", "25dvh", "2px"];
@@ -28,22 +29,20 @@ export default function AddCatPage() {
   const [center, setCenter] = useState({ lat: 13.7649, lng: 100.5383 });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- 📝 States สำหรับข้อมูลแมว (Lifting State Up) ---
+  // --- 📝 States สำหรับข้อมูลแมว ---
   const [catName, setCatName] = useState("");
-  const [catInfo, setCatInfo] = useState("");      // รายละเอียดลักษณะเพิ่มเติม
-  const [healthInfo, setHealthInfo] = useState(""); // รายละเอียดด้านสุขภาพ
-  const [extraInfo, setExtraInfo] = useState("");   // คำอธิบายเพิ่มเติม (หัวข้อใหญ่)
+  const [catInfo, setCatInfo] = useState("");      
+  const [healthInfo, setHealthInfo] = useState(""); 
+  const [extraInfo, setExtraInfo] = useState("");   
   const [aggressiveness, setAggressiveness] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<{ [key: string]: string[] }>({
     pattern: [], color: [], fur_length: [], size: [], gender: [], health: []
   });
   
-  // ✨ เก็บสะสม URL รูปภาพ (สูงสุด 3 รูป)
   const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
-
-  // --- 📝 ดึงข้อมูล Tags จาก DB ---
   const [allTags, setAllTags] = useState<any[]>([]);
 
+  // --- 📝 ดึงข้อมูล Tags จาก DB ---
   useEffect(() => {
     const fetchTags = async () => {
       const { data, error } = await supabase
@@ -61,34 +60,26 @@ export default function AddCatPage() {
   // --- 🗑️ ฟังก์ชันลบรูปภาพ ---
   const handleDeletePhoto = async (index: number, url: string) => {
     try {
-      // 1. ดึงชื่อไฟล์จาก URL (ลบ query params ออกถ้ามี)
       const fileName = url.split('/').pop()?.split('?')[0];
-      
       if (fileName) {
-        // 2. ลบไฟล์ออกจาก Supabase Storage
         const { error } = await supabase.storage
           .from('cats')
           .remove([`cat-photos/${fileName}`]);
-        
         if (error) throw error;
       }
-
-      // 3. ลบออกจาก State เพื่ออัปเดต UI
       setUploadedPhotoUrls(prev => prev.filter((_, i) => i !== index));
-      
     } catch (error: any) {
       console.error("Error deleting photo:", error);
       alert("ไม่สามารถลบรูปภาพได้: " + error.message);
     }
   };
 
-  // --- 🚀 ฟังก์ชันบันทึกข้อมูล (handleSubmit) ---
+  // --- 🚀 ฟังก์ชันบันทึกข้อมูล ---
   const handleSubmit = async () => {
     if (isSubmitting) return;
     
     try {
       setIsSubmitting(true);
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("กรุณาเข้าสู่ระบบก่อนบันทึกข้อมูล");
@@ -197,12 +188,11 @@ export default function AddCatPage() {
           <div style={formFieldsWrapper}>
             <LocationDisplay lat={center.lat} lng={center.lng} />
             
-            <PhotoUploader 
+            <CatPhotoUploader 
               currentCount={uploadedPhotoUrls.length}
               onUploadComplete={(urls) => setUploadedPhotoUrls(prev => [...prev, ...urls])} 
             />
 
-            {/* ✨ ปรับปรุงส่วนแสดงพรีวิวรูปภาพให้มีปุ่มลบ */}
             {uploadedPhotoUrls.length > 0 && (
               <div style={imagePreviewListStyle}>
                 {uploadedPhotoUrls.map((url, i) => (
@@ -254,43 +244,10 @@ export default function AddCatPage() {
   );
 }
 
-// --- 🎨 Styles เพิ่มเติมสำหรับระบบลบรูป ---
-const imagePreviewListStyle: React.CSSProperties = { 
-  display: 'flex', 
-  gap: '12px', 
-  marginTop: '-10px', 
-  flexWrap: 'wrap' 
-};
-
-const smallPreviewStyle: React.CSSProperties = { 
-  width: '70px', 
-  height: '70px', 
-  borderRadius: '12px', 
-  objectFit: 'cover', 
-  border: '1.5px solid #D2CCBB' 
-};
-
-const deleteBtnStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '-6px',
-  right: '-6px',
-  width: '22px',
-  height: '22px',
-  borderRadius: '50%',
-  background: '#F44336',
-  color: 'white',
-  border: '2px solid white',
-  fontSize: '11px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-  padding: 0,
-  lineHeight: 1
-};
-
-// --- 💡 Styles เดิม ---
+// --- 🎨 Styles ---
+const imagePreviewListStyle: React.CSSProperties = { display: 'flex', gap: '12px', marginTop: '-10px', flexWrap: 'wrap' };
+const smallPreviewStyle: React.CSSProperties = { width: '70px', height: '70px', borderRadius: '12px', objectFit: 'cover', border: '1.5px solid #D2CCBB' };
+const deleteBtnStyle: React.CSSProperties = { position: 'absolute', top: '-6px', right: '-6px', width: '22px', height: '22px', borderRadius: '50%', background: '#F44336', color: 'white', border: '2px solid white', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', padding: 0, lineHeight: 1 };
 const mainLayout: React.CSSProperties = { display: 'flex', flexDirection: 'column', width: '100%', height: '100dvh', overflow: 'hidden', backgroundColor: '#F5F0E6' };
 const mapWrapper: React.CSSProperties = { position: 'relative', width: '100%', transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)', zIndex: 10, backgroundColor: '#E8E4D9', flexShrink: 0, overflow: 'visible' };
 const contentWrapper: React.CSSProperties = { flex: 1, padding: '40px 20px 24px 20px', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center' };
