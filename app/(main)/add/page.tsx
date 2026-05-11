@@ -16,7 +16,7 @@ import AttributeSection from "@/components/attributes";
 const MAP_HEIGHTS = ["60dvh", "25dvh", "2px"];
 const Map = dynamic(() => import("@/components/Map"), {
   ssr: false,
-  loading: () => <div style={loadingStyle}>กำลังเตรียมแผนที่... 🗺️</div>,
+  loading: () => <div style={loadingStyle}>กำลังเตรียมแผนที่...</div>,
 });
 
 export default function AddCatPage() {
@@ -71,14 +71,12 @@ export default function AddCatPage() {
 
       const getFirstTag = (catKey: string) => selectedTags[catKey]?.[0] || 'unknown';
       
-      // ✨ คำนวณ aggression_score ไว้ล่วงหน้าเพื่อใช้ทั้งสองตาราง
       const aggressionScore = aggressiveness ? 
         (aggressiveness === 'very_friendly' ? 1 : 
          aggressiveness === 'chill' ? 2 : 
          aggressiveness === 'normal' ? 3 : 
          aggressiveness === 'timid' ? 4 : 5) : null;
 
-      // 1. INSERT ลงตาราง cats
       const { data: newCat, error: catError } = await supabase.from('cats').insert({
         name: catName || "น้องแมวไม่มีชื่อ",
         description: extraInfo,
@@ -91,16 +89,12 @@ export default function AddCatPage() {
         size: getFirstTag('size'),
         gender: getFirstTag('gender'), 
         added_by: user.id, 
-        last_aggression_score: aggressionScore, // ✨ เก็บลงตาราง cats
+        last_aggression_score: aggressionScore,
         last_health_note: healthInfo
       }).select().single();
 
-      if (catError) {
-        console.error("Cat Insert Error:", catError);
-        throw new Error(`บันทึกข้อมูลแมวไม่สำเร็จ: ${catError.message}`);
-      }
+      if (catError) throw new Error(`บันทึกข้อมูลแมวไม่สำเร็จ: ${catError.message}`);
 
-      // 2. INSERT ลงตาราง cat_sightings (เพื่อเก็บประวัติการพบครั้งแรก)
       const { data: newSighting, error: sightingError } = await supabase.from('cat_sightings').insert({
         cat_id: newCat.id,
         user_id: user.id,
@@ -113,12 +107,6 @@ export default function AddCatPage() {
         report_type: 'sighting'
       }).select().single();
 
-      if (sightingError) {
-        console.error("Sighting Insert Error:", sightingError);
-        // ไม่ throw error ตรงนี้เพื่อให้ขั้นตอนอื่นทำงานต่อได้ แต่แจ้งเตือนใน Console
-      }
-
-      // 3. บันทึก Health Tags (ถ้ามี)
       const healthTags = selectedTags['health'] || [];
       if (newSighting && healthTags.length > 0) {
         const healthEntries = healthTags.map(tagKey => ({
@@ -128,7 +116,6 @@ export default function AddCatPage() {
         await supabase.from('sighting_health_tags').insert(healthEntries);
       }
 
-      // 4. บันทึกรูปภาพ
       if (uploadedPhotoUrls.length > 0) {
         const photoEntries = uploadedPhotoUrls.map((url, idx) => ({
           cat_id: newCat.id, 
@@ -141,7 +128,7 @@ export default function AddCatPage() {
       }
 
       alert("บันทึกข้อมูลเรียบร้อย! 🐾");
-      router.push("/"); // กลับหน้าแรกเพื่อดูหมุด
+      router.push("/"); 
 
     } catch (err: any) { 
       alert(`เกิดข้อผิดพลาด: ${err.message}`); 
@@ -171,6 +158,16 @@ export default function AddCatPage() {
 
       <section style={{ ...mapWrapper, height: currentHeight }}>
         <Map isPickerMode={true} onCenterChange={setCenter} />
+        
+        {/* 📍 หมุดกึ่งกลางหน้าจอ (Center Pin) */}
+        {mapState !== 2 && (
+          <div style={centerPinContainer}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="#FF4D4D" stroke="white" strokeWidth="1"/>
+            </svg>
+          </div>
+        )}
+
         <button onClick={() => router.push("/")} style={backCircleBtn}>✕</button>
         <MapHandle state={mapState} onClick={() => setMapState((prev) => (prev + 1) % 3)} />
       </section>
@@ -220,6 +217,18 @@ export default function AddCatPage() {
 }
 
 // --- 🎨 Styles ---
+const centerPinContainer: React.CSSProperties = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -100%)', // ให้ปลายหมุดอยู่ตรงกึ่งกลางพอดี
+  zIndex: 1001,
+  pointerEvents: 'none', // สำคัญ: เพื่อให้ลากแผนที่ทะลุหมุดได้
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+};
+
 const slimInputStyle: React.CSSProperties = {
   background: '#FFF',
   border: '1.5px solid #D2CCBB',
