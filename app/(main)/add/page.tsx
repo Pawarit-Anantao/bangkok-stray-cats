@@ -22,7 +22,6 @@ const Map = dynamic(() => import("@/components/Map"), {
 export default function AddCatPage() {
   const router = useRouter();
   
-  // --- 1. Hooks (ลำดับคงที่) ---
   const [isChecking, setIsChecking] = useState(true);
   const [mapState, setMapState] = useState(0); 
   const [center, setCenter] = useState({ lat: 13.7649, lng: 100.5383 });
@@ -66,8 +65,20 @@ export default function AddCatPage() {
     if (isSubmitting) return;
     try {
       setIsSubmitting(true);
+      
+      // 1. ดึงข้อมูล User จาก Auth
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่");
+
+      // ✨ 2. ดึง Role ของผู้ใช้จากตาราง public.users เพื่อกำหนดประเภทหมุด
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      // กำหนดค่า map_type: ถ้าเป็น admin ให้เป็น official, ถ้าไม่ใช่ให้เป็น community
+      const mapType = userData?.role === 'admin' ? 'official' : 'community';
 
       const getFirstTag = (catKey: string) => selectedTags[catKey]?.[0] || 'unknown';
       
@@ -77,12 +88,14 @@ export default function AddCatPage() {
          aggressiveness === 'normal' ? 3 : 
          aggressiveness === 'timid' ? 4 : 5) : null;
 
+      // 3. บันทึกข้อมูลลงตาราง cats
       const { data: newCat, error: catError } = await supabase.from('cats').insert({
         name: catName || "น้องแมวไม่มีชื่อ",
         description: extraInfo,
         identifying_marks: catInfo,
         lat: center.lat, 
         lng: center.lng,
+        map_type: mapType, // ✨ ส่งประเภทแผนที่ที่คำนวณได้เข้าไป
         pattern: getFirstTag('pattern'), 
         color: getFirstTag('color'),
         fur_length: getFirstTag('fur_length'), 
@@ -95,6 +108,7 @@ export default function AddCatPage() {
 
       if (catError) throw new Error(`บันทึกข้อมูลแมวไม่สำเร็จ: ${catError.message}`);
 
+      // 4. บันทึกการพบเห็น (Sighting)
       const { data: newSighting, error: sightingError } = await supabase.from('cat_sightings').insert({
         cat_id: newCat.id,
         user_id: user.id,
@@ -107,6 +121,7 @@ export default function AddCatPage() {
         report_type: 'sighting'
       }).select().single();
 
+      // 5. บันทึก Health Tags
       const healthTags = selectedTags['health'] || [];
       if (newSighting && healthTags.length > 0) {
         const healthEntries = healthTags.map(tagKey => ({
@@ -116,6 +131,7 @@ export default function AddCatPage() {
         await supabase.from('sighting_health_tags').insert(healthEntries);
       }
 
+      // 6. บันทึกรูปภาพ
       if (uploadedPhotoUrls.length > 0) {
         const photoEntries = uploadedPhotoUrls.map((url, idx) => ({
           cat_id: newCat.id, 
@@ -127,7 +143,7 @@ export default function AddCatPage() {
         await supabase.from('cat_photos').insert(photoEntries);
       }
 
-      alert("บันทึกข้อมูลเรียบร้อย! 🐾");
+      alert(`บันทึกข้อมูลเรียบร้อยในโหมด ${mapType === 'official' ? 'เป็นทางการ' : 'ชุมชน'}! 🐾`);
       router.push("/"); 
 
     } catch (err: any) { 
@@ -159,7 +175,6 @@ export default function AddCatPage() {
       <section style={{ ...mapWrapper, height: currentHeight }}>
         <Map isPickerMode={true} onCenterChange={setCenter} />
         
-        {/* 📍 หมุดกึ่งกลางหน้าจอ (Center Pin) */}
         {mapState !== 2 && (
           <div style={centerPinContainer}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -216,25 +231,19 @@ export default function AddCatPage() {
   );
 }
 
-// --- 🎨 Styles ---
+// --- Styles (คงเดิมตามไฟล์ที่คุณส่งมา) ---
 const centerPinContainer: React.CSSProperties = {
   position: 'absolute',
   top: '50%',
   left: '50%',
-  transform: 'translate(-50%, -100%)', // ให้ปลายหมุดอยู่ตรงกึ่งกลางพอดี
+  transform: 'translate(-50%, -100%)',
   zIndex: 1001,
-  pointerEvents: 'none', // สำคัญ: เพื่อให้ลากแผนที่ทะลุหมุดได้
+  pointerEvents: 'none',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
 };
-
-const slimInputStyle: React.CSSProperties = {
-  background: '#FFF',
-  border: '1.5px solid #D2CCBB',
-  outline: 'none',
-};
-
+const slimInputStyle: React.CSSProperties = { background: '#FFF', border: '1.5px solid #D2CCBB', outline: 'none' };
 const mainLayout: React.CSSProperties = { display: 'flex', flexDirection: 'column', width: '100%', height: '100dvh', overflow: 'hidden', backgroundColor: '#F5F0E6' };
 const mapWrapper: React.CSSProperties = { position: 'relative', width: '100%', transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)', zIndex: 10, flexShrink: 0 };
 const contentWrapper: React.CSSProperties = { flex: 1, padding: '20px 20px 24px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' };
