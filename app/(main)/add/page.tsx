@@ -67,31 +67,87 @@ export default function AddCatPage() {
     try {
       setIsSubmitting(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("ไม่พบข้อมูลผู้ใช้");
-      const getFirstTag = (catKey: string) => selectedTags[catKey]?.[0] || 'unknown';
+      if (!user) throw new Error("ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่");
 
+      const getFirstTag = (catKey: string) => selectedTags[catKey]?.[0] || 'unknown';
+      
+      // ✨ คำนวณ aggression_score ไว้ล่วงหน้าเพื่อใช้ทั้งสองตาราง
+      const aggressionScore = aggressiveness ? 
+        (aggressiveness === 'very_friendly' ? 1 : 
+         aggressiveness === 'chill' ? 2 : 
+         aggressiveness === 'normal' ? 3 : 
+         aggressiveness === 'timid' ? 4 : 5) : null;
+
+      // 1. INSERT ลงตาราง cats
       const { data: newCat, error: catError } = await supabase.from('cats').insert({
         name: catName || "น้องแมวไม่มีชื่อ",
         description: extraInfo,
         identifying_marks: catInfo,
-        lat: center.lat, lng: center.lng,
-        pattern: getFirstTag('pattern'), color: getFirstTag('color'),
-        fur_length: getFirstTag('fur_length'), size: getFirstTag('size'),
-        gender: getFirstTag('gender'), added_by: user.id, last_health_note: healthInfo
+        lat: center.lat, 
+        lng: center.lng,
+        pattern: getFirstTag('pattern'), 
+        color: getFirstTag('color'),
+        fur_length: getFirstTag('fur_length'), 
+        size: getFirstTag('size'),
+        gender: getFirstTag('gender'), 
+        added_by: user.id, 
+        last_aggression_score: aggressionScore, // ✨ เก็บลงตาราง cats
+        last_health_note: healthInfo
       }).select().single();
 
-      if (catError) throw catError;
+      if (catError) {
+        console.error("Cat Insert Error:", catError);
+        throw new Error(`บันทึกข้อมูลแมวไม่สำเร็จ: ${catError.message}`);
+      }
+
+      // 2. INSERT ลงตาราง cat_sightings (เพื่อเก็บประวัติการพบครั้งแรก)
+      const { data: newSighting, error: sightingError } = await supabase.from('cat_sightings').insert({
+        cat_id: newCat.id,
+        user_id: user.id,
+        lat: center.lat,
+        lng: center.lng,
+        note: extraInfo,
+        aggression_score: aggressionScore,
+        health_note: healthInfo,
+        identifying_note: catInfo,
+        report_type: 'sighting'
+      }).select().single();
+
+      if (sightingError) {
+        console.error("Sighting Insert Error:", sightingError);
+        // ไม่ throw error ตรงนี้เพื่อให้ขั้นตอนอื่นทำงานต่อได้ แต่แจ้งเตือนใน Console
+      }
+
+      // 3. บันทึก Health Tags (ถ้ามี)
+      const healthTags = selectedTags['health'] || [];
+      if (newSighting && healthTags.length > 0) {
+        const healthEntries = healthTags.map(tagKey => ({
+          sighting_id: newSighting.id,
+          tag_key: tagKey
+        }));
+        await supabase.from('sighting_health_tags').insert(healthEntries);
+      }
+
+      // 4. บันทึกรูปภาพ
       if (uploadedPhotoUrls.length > 0) {
         const photoEntries = uploadedPhotoUrls.map((url, idx) => ({
-          cat_id: newCat.id, public_url: url, storage_path: url.split('/').pop()?.split('?')[0],
-          is_primary: idx === 0, uploaded_by: user.id
+          cat_id: newCat.id, 
+          public_url: url, 
+          storage_path: url.split('/').pop()?.split('?')[0],
+          is_primary: idx === 0, 
+          uploaded_by: user.id
         }));
         await supabase.from('cat_photos').insert(photoEntries);
       }
+
       alert("บันทึกข้อมูลเรียบร้อย! 🐾");
-      router.push("/"); 
-    } catch (err: any) { alert(`เกิดข้อผิดพลาด: ${err.message}`); }
-    finally { setIsSubmitting(false); }
+      router.push("/"); // กลับหน้าแรกเพื่อดูหมุด
+
+    } catch (err: any) { 
+      alert(`เกิดข้อผิดพลาด: ${err.message}`); 
+    } finally { 
+      setIsSubmitting(false); 
+    }
   };
 
   if (isChecking) return <div style={loadingStyle}>กำลังตรวจสอบสิทธิ์... 🐾</div>;
@@ -115,7 +171,6 @@ export default function AddCatPage() {
 
       <section style={{ ...mapWrapper, height: currentHeight }}>
         <Map isPickerMode={true} onCenterChange={setCenter} />
-        {/* ✨ เปลี่ยนจาก router.back() เป็น router.push("/") */}
         <button onClick={() => router.push("/")} style={backCircleBtn}>✕</button>
         <MapHandle state={mapState} onClick={() => setMapState((prev) => (prev + 1) % 3)} />
       </section>
@@ -153,7 +208,6 @@ export default function AddCatPage() {
           </div>
           
           <div style={buttonGroupContainer}>
-            {/* ✨ เปลี่ยนจาก router.back() เป็น router.push("/") */}
             <Button variant="ghost" onClick={() => router.push("/")} style={{ flex: 1, height: '40px' }}>ยกเลิก</Button>
             <Button onClick={handleSubmit} disabled={isSubmitting} style={{ flex: 1, height: '40px' }}>
               {isSubmitting ? "กำลังบันทึก..." : "ยืนยัน"}
