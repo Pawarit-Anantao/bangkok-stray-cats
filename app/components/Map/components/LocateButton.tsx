@@ -58,12 +58,13 @@ export default function LocateButton({ onLocationFound }: LocateButtonProps) {
       onClick={handleLocate}
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="7" stroke="#5180CE" stroke-width="2"/>
-        <circle cx="12" cy="12" r="2" fill="#5180CE" stroke="#5180CE" stroke-width="2"/>
-        <path d="M12 5V3" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
-        <path d="M19 12L21 12" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
-        <path d="M12 21L12 19" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
-        <path d="M3 12H5" stroke="#5180CE" stroke-width="2" stroke-linecap="round"/>
+        {/* ✨ แก้ไขจาก stroke-width เป็น strokeWidth และ stroke-linecap เป็น strokeLinecap */}
+        <circle cx="12" cy="12" r="7" stroke="#5180CE" strokeWidth="2"/>
+        <circle cx="12" cy="12" r="2" fill="#5180CE" stroke="#5180CE" strokeWidth="2"/>
+        <path d="M12 5V3" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M19 12L21 12" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M12 21L12 19" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M3 12H5" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
       </svg>
     </div>
   );

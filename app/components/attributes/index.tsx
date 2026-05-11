@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import TagDisplayBox from "./TagDisplayBox";
-import TagChip from "./TagChip";
-import TagSelectionWindow from "./TagSelectionWindow";
-import CategoryGrid from "./CategoryGrid"; 
+import TagDisplayBox from "../TagDisplayBox";
+import TagChip from "../TagChip";
+import TagSelectionWindow from "../TagSelectionWindow";
+import CategoryGrid from "../CategoryGrid"; 
 import FormField from "../FormField";
 import AggressivenessSelector from "../AggressivenessSelector";
 
