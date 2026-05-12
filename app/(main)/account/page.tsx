@@ -33,18 +33,15 @@ export default function AccountPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return router.push("/login");
 
-      // 1. ดึงข้อมูล User
       const { data: profile } = await supabase.from("users").select("*").eq("id", session.user.id).single();
       if (profile) {
         setUser(profile);
         setUsername(profile.username || "");
       }
 
-      // 2. ดึงข้อมูลติดต่อ
       const { data: contactData } = await supabase.from("user_contacts").select("*").eq("user_id", session.user.id);
       setContacts(contactData || []);
 
-      // 3. ดึง Avatar ที่ปลดล็อกแล้ว (แกลเลอรี)
       const { data: unlocked } = await supabase.from("user_unlocked_avatars").select(`avatar_master (*)`).eq("user_id", session.user.id);
       setUnlockedAvatars(unlocked?.map((item: any) => item.avatar_master) || []);
 
@@ -99,7 +96,6 @@ export default function AccountPage() {
       </header>
 
       <section style={contentSection}>
-        {/* 🖼️ Profile Display Section */}
         <div style={avatarCenterSection}>
           <div style={avatarCircle}>
             {user?.avatar_url ? (
@@ -113,7 +109,6 @@ export default function AccountPage() {
           <div style={userEmailText}>{user?.email}</div>
         </div>
 
-        {/* 👤 Change Name */}
         <div style={formGroup}>
           <label style={labelStyle}>ชื่อผู้ใช้ (Username)</label>
           <div style={inputRow}>
@@ -129,7 +124,6 @@ export default function AccountPage() {
 
         <div style={divider} />
 
-        {/* 📱 Contacts */}
         <div style={formGroup}>
           <label style={labelStyle}>ข้อมูลติดต่อของคุณ</label>
           <div style={contactList}>
@@ -154,7 +148,6 @@ export default function AccountPage() {
 
         <div style={divider} />
 
-        {/* 🐈 คอลเลกชันรูปโปรไฟล์ (Gallery) */}
         <div style={formGroup}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <label style={labelStyle}>คอลเลกชันโปรไฟล์ที่ปลดล็อก</label>
@@ -185,7 +178,6 @@ export default function AccountPage() {
   );
 }
 
-// --- 🎨 Styles ---
 const FONT_VAR = 'var(--font-noto-looped)';
 const mainLayout: React.CSSProperties = { display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: '#FFF', padding: '24px 20px 60px 20px', fontFamily: FONT_VAR };
 const headerStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' };

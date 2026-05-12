@@ -7,3 +7,55 @@ html, body {
   margin: 0;
   padding: 0;
 }
+
+/* --- 🎨 ดีไซน์ Marker Cluster แบบฟุ้งพิเศษ (Glow Orb) --- */
+
+/* ลบสีพื้นหลังมาตรฐานของ Leaflet */
+.marker-cluster-small, 
+.marker-cluster-medium, 
+.marker-cluster-large {
+  background-color: transparent !important;
+}
+
+.marker-cluster div {
+  width: 24px;  /* ปรับขนาดวงกลางให้เล็กลง เพื่อเน้นความฟุ้งรอบๆ */
+  height: 24px;
+  margin-left: 8px;
+  margin-top: 8px;
+  text-align: center;
+  border-radius: 50%;
+  
+  /* สีชมพูเข้มแบบโปร่งแสงเล็กน้อยเพื่อให้ขอบดูนุ่ม */
+  background-color: rgba(255, 20, 110, 0.9) !important; 
+  
+  /* ตัวเลขสีขาวสว่าง */
+  color: white !important;
+  font-family: var(--font-noto-looped) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  line-height: 24px !important;
+
+  /* ✨ การซ้อน Shadow 4 ชั้นเพื่อให้ดูฟุ้งเหมือนไม่มีขอบ */
+  box-shadow: 
+    0 0 15px 10px rgba(255, 20, 110, 0.7),  /* ชั้นใน: สว่างเข้ม */
+    0 0 30px 20px rgba(255, 20, 110, 0.4),  /* ชั้นกลาง: เริ่มจาง */
+    0 0 50px 30px rgba(255, 20, 110, 0.2),  /* ชั้นนอก: ฟุ้งกว้าง */
+    0 0 70px 40px rgba(255, 20, 110, 0.1) !important; /* ชั้นสุดท้าย: กลืนไปกับพื้น */
+
+  /* ปิดขอบเส้นประหรือขอบมืดที่อาจติดมา */
+  border: none !important;
+  outline: none !important;
+}
+
+/* เพิ่มลูกเล่นให้ดูเหมือนก้อนเมฆเรืองแสงที่ขยับได้เล็กน้อย */
+.marker-cluster {
+  transition: transform 0.3s ease-out;
+}
+
+.marker-cluster:hover div {
+  transform: scale(1.2);
+  box-shadow: 
+    0 0 20px 15px rgba(255, 20, 110, 0.8), 
+    0 0 40px 25px rgba(255, 20, 110, 0.5), 
+    0 0 80px 45px rgba(255, 20, 110, 0.2) !important;
+}

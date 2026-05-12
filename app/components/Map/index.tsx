@@ -6,6 +6,7 @@ import { renderToString } from "react-dom/server";
 import { useRouter } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster"; // ✨ นำเข้าไลบรารี Cluster
 import { supabase } from "@/lib/supabase";
 
 import LocateButton from "./components/LocateButton";
@@ -18,7 +19,7 @@ interface MapProps {
   onCenterChange?: (coords: { lat: number; lng: number }) => void;
 }
 
-// ✨ ส่วนประกอบจับเหตุการณ์ Zoom แบบ Real-time
+// ✨ ส่วนประกอบจับเหตุการณ์ Zoom และ Move
 function MapEventHandler({ 
   onZoomChange, 
   onCenterChange, 
@@ -89,7 +90,12 @@ export default function Map({
   useEffect(() => {
     if (showMarkers) {
       const fetchCats = async () => {
-        const { data } = await supabase.from('cats').select(`id, name, lat, lng, map_type, cat_photos(public_url, is_primary)`);
+        // ✨ เพิ่ม .is('deleted_at', null) เพื่อกรองแมวที่ถูกลบออกแบบ Soft Delete
+        const { data } = await supabase
+          .from('cats')
+          .select(`id, name, lat, lng, map_type, deleted_at, cat_photos(public_url, is_primary)`)
+          .is('deleted_at', null);
+        
         if (data) setAllCats(data);
       };
       fetchCats();
@@ -122,46 +128,50 @@ export default function Map({
         </Marker>
       )}
 
-      {showMarkers && displayCats.map((cat) => {
-        const primaryPhoto = cat.cat_photos?.find((p: any) => p.is_primary)?.public_url || cat.cat_photos?.[0]?.public_url;
-        return (
-          <Marker 
-            key={cat.id} 
-            position={[cat.lat, cat.lng]} 
-            icon={createDynamicCatIcon(primaryPhoto, cat.map_type)}
-            // ✨ 1. ลบ eventHandlers/click ออก เพื่อให้ Leaflet เปิด Popup ตามปกติ
-          >
-            {/* ✨ 2. ปรับแต่งเนื้อหา Popup ตามสเปกใหม่ */}
-            <Popup>
-              <div style={popupContainerStyle}>
-                {/* ชื่อแมว */}
-                <b style={{ ...popupNameStyle, color: cat.map_type === 'official' ? '#5180CE' : '#FF146E' }}>
-                  {cat.name || "น้องแมวไม่มีชื่อ"}
-                </b>
-
-                {/* ปุ่มดูโปรไฟล์ (มินิมอลสไตล์) */}
-                <button 
-                  onClick={() => router.push(`/cat/${cat.id}`)}
-                  style={popupButtonStyle}
-                >
-                  ดูโปรไฟล์
-                </button>
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
+      {/* ✨ ห่อหุ้มหมุดแมวด้วย MarkerClusterGroup */}
+      {showMarkers && (
+        <MarkerClusterGroup
+          chunkedLoading // เพิ่มประสิทธิภาพเมื่อหมุดเยอะ
+          maxClusterRadius={50} // ระยะการรวมกลุ่ม (50px)
+          disableClusteringAtZoom={18} // เมื่อซูมใกล้มาก (Lv.18) จะไม่รวมกลุ่มเพื่อให้เห็นแยกตัวชัดเจน
+        >
+          {displayCats.map((cat) => {
+            const primaryPhoto = cat.cat_photos?.find((p: any) => p.is_primary)?.public_url || cat.cat_photos?.[0]?.public_url;
+            return (
+              <Marker 
+                key={cat.id} 
+                position={[cat.lat, cat.lng]} 
+                icon={createDynamicCatIcon(primaryPhoto, cat.map_type)}
+              >
+                <Popup>
+                  <div style={popupContainerStyle}>
+                    <b style={{ ...popupNameStyle, color: cat.map_type === 'official' ? '#5180CE' : '#FF146E' }}>
+                      {cat.name || "น้องแมวไม่มีชื่อ"}
+                    </b>
+                    <button 
+                      onClick={() => router.push(`/cat/${cat.id}`)}
+                      style={popupButtonStyle}
+                    >
+                      ดูโปรไฟล์
+                    </button>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MarkerClusterGroup>
+      )}
     </MapContainer>
   );
 }
 
-// --- 🎨 Styles ---
+// --- 🎨 Styles (เดิมของคุณ) ---
 const popupContainerStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  gap: '8px', // ระยะห่างระหว่างชื่อกับปุ่ม
-  fontFamily: 'var(--font-noto-looped)', // ใช้ฟอนต์ไทย
+  gap: '8px',
+  fontFamily: 'var(--font-noto-looped)',
 };
 
 const popupNameStyle: React.CSSProperties = {
@@ -172,16 +182,12 @@ const popupNameStyle: React.CSSProperties = {
 };
 
 const popupButtonStyle: React.CSSProperties = {
-  // สไตล์ตามสเปกที่คุณให้มา
-  backgroundColor: '#FFFAF1', // สีพื้นหลังด้านใน
-  color: '#CDBC8E', // สีตัวอักษร
-  border: '1px solid #CDBC8E', // สีกรอบ
-  
-  // ปรับให้เป็นปุ่มเล็กๆ
+  backgroundColor: '#FFFAF1',
+  color: '#CDBC8E',
+  border: '1px solid #CDBC8E',
   padding: '4px 12px',
   fontSize: '12px',
-  borderRadius: '20px', // ขอบมน
-  
+  borderRadius: '20px',
   cursor: 'pointer',
   fontFamily: 'var(--font-noto-looped)',
   outline: 'none',
