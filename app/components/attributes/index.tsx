@@ -8,7 +8,6 @@ import CategoryGrid from "../CategoryGrid";
 import FormField from "../FormField";
 import AggressivenessSelector from "../AggressivenessSelector";
 
-// ✨ กำหนด Interface ให้ตรงกับที่หน้าหลักส่งมา
 interface AttributeSectionProps {
   allTags: any[];
   selectedTags: { [key: string]: string[] };
@@ -21,6 +20,7 @@ interface AttributeSectionProps {
   setHealthInfo: (val: string) => void;
   extraInfo: string;
   setExtraInfo: (val: string) => void;
+  isSightingMode?: boolean;
 }
 
 export default function AttributeSection({ 
@@ -34,18 +34,16 @@ export default function AttributeSection({
   healthInfo,
   setHealthInfo,
   extraInfo,
-  setExtraInfo
+  setExtraInfo,
+  isSightingMode = false
 }: AttributeSectionProps) {
   
-  // 🟢 activeCategory เก็บไว้ที่นี่ได้ เพราะใช้แค่คุมการเปิด/ปิดหน้าต่างเลือก Tag ในตัวมันเอง
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  // Logic การ Toggle (ปรับให้ใช้ setSelectedTags จาก props)
   const handleToggle = (category: string, key: string) => {
     setSelectedTags(prev => {
       const current = prev[category] || [];
       if (key === 'unknown') return { ...prev, [category]: ['unknown'] };
-      
       let next = current.filter(k => k !== 'unknown');
       if (next.includes(key)) {
         next = next.filter(k => k !== key);
@@ -56,59 +54,68 @@ export default function AttributeSection({
     });
   };
 
-  const categories = [
-    { id: 'pattern', label: 'เลือกลาย' }, { id: 'color', label: 'เลือกสี' },
-    { id: 'fur_length', label: 'ลักษณะขน' }, { id: 'size', label: 'ขนาด' },
-    { id: 'gender', label: 'เพศ' }, { id: 'health', label: 'ข้อมูลสุขภาพ' }
-  ];
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', maxWidth: '334px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '334px', margin: '0 auto' }}>
       
-      {/* 🏷️ Header */}
+      {/* 🏷️ ส่วนการเลือก Tag สุขภาพ */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 'normal', fontFamily: 'var(--font-noto-looped)' }}>เพิ่มลักษณะแมว</h2>
-        <span style={{ fontSize: '11px', color: '#8F8362', fontFamily: 'var(--font-noto-looped)' }}>สามารถเลือกได้หลายลักษณะ</span>
+        <h2 style={sectionTitleStyle}>
+          {isSightingMode ? "ข้อมูลสุขภาพแมว" : "เพิ่มลักษณะแมว"}
+        </h2>
+        {!isSightingMode && (
+          <span style={{ fontSize: '11px', color: '#8F8362', fontFamily: 'var(--font-noto-looped)', fontWeight: 400 }}>
+            สามารถเลือกได้หลายลักษณะ
+          </span>
+        )}
       </div>
 
-      {/* 📦 Tag Display Area */}
       <TagDisplayBox>
-        {Object.entries(selectedTags).map(([cat, keys]) => 
-          keys.map(key => {
-            const tag = allTags.find(t => t.category === cat && t.key === key);
-            return tag ? (
-              <TagChip 
-                key={`${cat}-${key}`} 
-                label={tag.label_th} 
-                category={cat}
-                onRemove={() => handleToggle(cat, key)} 
-              />
-            ) : null;
-          })
-        )}
+        {Object.entries(selectedTags)
+          .filter(([cat]) => !isSightingMode || cat === 'health') 
+          .map(([cat, keys]) => 
+            keys.map(key => {
+              const tag = allTags.find(t => t.category === cat && t.key === key);
+              return tag ? (
+                <TagChip 
+                  key={`${cat}-${key}`} 
+                  label={tag.label_th} 
+                  category={cat}
+                  onRemove={() => handleToggle(cat, key)} 
+                />
+              ) : null;
+            })
+          )
+        }
       </TagDisplayBox>
 
-      {/* 🗂️ Grid Buttons */}
-      <CategoryGrid 
-        onOpenSelector={(catId) => setActiveCategory(catId)}
-        selectedCounts={Object.fromEntries(
-          Object.entries(selectedTags).map(([cat, tags]) => [cat, tags.length])
-        )}
-      />
+      {isSightingMode ? (
+        <button onClick={() => setActiveCategory('health')} style={healthSelectBtnStyle}>
+          + เลือกอาการ/ป้ายกำกับสุขภาพ
+        </button>
+      ) : (
+        <CategoryGrid 
+          onOpenSelector={(catId) => setActiveCategory(catId)}
+          selectedCounts={Object.fromEntries(
+            Object.entries(selectedTags).map(([cat, tags]) => [cat, tags.length])
+          )}
+        />
+      )}
 
-      {/* 📝 Textareas เดิม */}
       <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <FormField label="รายละเอียดลักษณะเพิ่มเติม">
-          <textarea 
-            placeholder="หน้าตาน่ารัก, พุงจะย้วยลงมา..." 
-            style={textareaStyle} 
-            value={catInfo}
-            onChange={(e) => setCatInfo(e.target.value)}
-          />
-        </FormField>
+        {!isSightingMode && (
+          <FormField label="รายละเอียดลักษณะเพิ่มเติม">
+            <textarea 
+              placeholder="หน้าตาน่ารัก, พุงจะย้วยลงมา..." 
+              style={textareaStyle} 
+              value={catInfo}
+              onChange={(e) => setCatInfo(e.target.value)}
+            />
+          </FormField>
+        )}
+
         <FormField label="รายละเอียดด้านสุขภาพ">
           <textarea 
-            placeholder="น้องเดินเซๆ อาจจะอ้วนเกิน" 
+            placeholder="น้องมีแผลที่ขา, ตาเจ็บ..." 
             style={textareaStyle} 
             value={healthInfo}
             onChange={(e) => setHealthInfo(e.target.value)}
@@ -116,34 +123,29 @@ export default function AttributeSection({
         </FormField>
       </div>
 
-      {/* ✨ ระดับความดุ */}
-      <AggressivenessSelector 
-        selectedLevel={aggressiveness}
-        onSelect={(level) => setAggressiveness(level)}
-      />
 
-      {/* 📝 คำอธิบายเพิ่มเติม (หัวข้อใหญ่) */}
-      <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <h2 style={{ 
-          fontSize: '20px', 
-          fontWeight: 'normal', 
-          fontFamily: 'var(--font-noto-looped)',
-          margin: 0 
-        }}>
-          คำอธิบายเพิ่มเติม
-        </h2>
+      {/* 📝 ข้อมูลเพิ่มเติมจากการพบเห็น (ขนาดหัวข้อ 15px) */}
+      <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <h2 style={sectionTitleStyle}>ข้อมูลเพิ่มเติมจากการพบเห็น</h2>
         <textarea 
-          placeholder="ระบุรายละเอียดอื่นๆ เช่น จุดที่พบเจอครั้งสุดท้าย หรือข้อมูลที่คุณอยากบอก..." 
+          placeholder="พบน้องที่พุ่มไม้หลังตึก..." 
           style={textareaStyle} 
           value={extraInfo}
           onChange={(e) => setExtraInfo(e.target.value)}
         />
       </div>
 
-      {/* 🪟 Selection Window */}
+      {/* ✨ ประสบการณ์ความดุ (เพิ่มหัวข้อขนาด 15px) */}
+      <div style={{ marginTop: '-15px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <AggressivenessSelector 
+          selectedLevel={aggressiveness}
+          onSelect={(level) => setAggressiveness(level)}
+        />
+      </div>
+
       {activeCategory && (
         <TagSelectionWindow 
-          categoryLabel={categories.find(c => c.id === activeCategory)?.label || ""}
+          categoryLabel={activeCategory === 'health' ? 'ข้อมูลสุขภาพ' : ''}
           tags={allTags.filter(t => t.category === activeCategory)}
           selectedKeys={selectedTags[activeCategory]}
           onToggle={(key) => handleToggle(activeCategory, key)}
@@ -154,16 +156,23 @@ export default function AttributeSection({
   );
 }
 
-const textareaStyle: React.CSSProperties = { 
-  width: '100%', 
-  minHeight: '80px', 
-  padding: '12px', 
-  borderRadius: '12px', 
-  border: '1.5px solid #D2CCBB', 
-  background: '#F7F7F7', 
+// --- 🎨 Styles ---
+const sectionTitleStyle: React.CSSProperties = { 
+  fontSize: '15px', // ✨ ลดจาก 20px เหลือ 15px เท่ากับรายละเอียดด้านสุขภาพ
+  fontWeight: 400, 
   fontFamily: 'var(--font-noto-looped)', 
-  fontSize: '14px', 
-  resize: 'none',
-  boxSizing: 'border-box', 
-  outline: 'none' 
+  margin: 0 
+};
+
+const textareaStyle: React.CSSProperties = { 
+  width: '100%', minHeight: '80px', padding: '12px', borderRadius: '12px', 
+  border: '1.5px solid #D2CCBB', background: '#F7F7F7', 
+  fontFamily: 'var(--font-noto-looped)', fontSize: '14px', fontWeight: 400,
+  resize: 'none', boxSizing: 'border-box', outline: 'none' 
+};
+
+const healthSelectBtnStyle: React.CSSProperties = {
+  width: '100%', padding: '12px', borderRadius: '12px', border: '1.5px dashed #D2CCBB',
+  background: '#FFF', color: '#8F8362', fontFamily: 'var(--font-noto-looped)',
+  fontSize: '14px', fontWeight: 400, cursor: 'pointer', textAlign: 'center'
 };

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import { renderToString } from "react-dom/server";
+import { useRouter } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { supabase } from "@/lib/supabase";
@@ -28,7 +29,7 @@ function MapEventHandler({
   isPickerMode: boolean;
 }) {
   const map = useMapEvents({
-    zoom() { // ✨ ใช้ 'zoom' แทน 'zoomend' เพื่อความสมูทขณะซูม
+    zoom() {
       onZoomChange(map.getZoom());
     },
     move() {
@@ -61,32 +62,25 @@ export default function Map({
   mode = "community",
   onCenterChange 
 }: MapProps) {
+  const router = useRouter();
   const startingPosition: [number, number] = [13.7649, 100.5383];
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [allCats, setAllCats] = useState<any[]>([]);
-  
-  // ✨ ตั้งค่า Zoom เริ่มต้นให้ตรงกับ MapContainer (15)
   const [zoomLevel, setZoomLevel] = useState(15);
 
-  // ✨ คำนวณ Scale ของหมุด (1.0 - 1.7)
   const markerScale = useMemo(() => {
-    // สูตร: เริ่มขยายที่ซูม 14, เพิ่มขั้นละ 0.175 จนถึง 1.7 ที่ซูม 18
     const scale = 1 + (Math.max(0, zoomLevel - 14) * 0.175);
     return Math.min(1.7, scale);
   }, [zoomLevel]);
 
-  // ✨ ฟังก์ชันสร้าง Icon ที่ปรับขนาดตาม Scale จริง
   const createDynamicCatIcon = (url: string, mapType: "community" | "official") => {
     const baseWidth = 47;
     const baseHeight = 49;
     
     return L.divIcon({
       className: "cat-marker-icon",
-      // ✨ สำคัญ: ส่ง markerScale เข้าไปใน Component
       html: renderToString(<CatMapMarker photoUrl={url} mode={mapType} scale={markerScale} />),
-      // ✨ ปรับขนาดกรอบ Leaflet ให้ใหญ่ตาม scale ป้องกันการโดนตัดขอบ
       iconSize: [baseWidth * markerScale, baseHeight * markerScale],
-      // ✨ ปรับจุดปักหมุดให้ลงที่ปลายแหลมเสมอ (อิงจาก SVG: x=23.5, y=37)
       iconAnchor: [23.5 * markerScale, 37 * markerScale],
       popupAnchor: [0, -35 * markerScale],
     });
@@ -134,14 +128,24 @@ export default function Map({
           <Marker 
             key={cat.id} 
             position={[cat.lat, cat.lng]} 
-            // ✨ ส่งค่าไปสร้าง Icon
             icon={createDynamicCatIcon(primaryPhoto, cat.map_type)}
+            // ✨ 1. ลบ eventHandlers/click ออก เพื่อให้ Leaflet เปิด Popup ตามปกติ
           >
+            {/* ✨ 2. ปรับแต่งเนื้อหา Popup ตามสเปกใหม่ */}
             <Popup>
-              <div className="text-center font-thai">
-                <b style={{ color: cat.map_type === 'official' ? '#5180CE' : '#FF146E' }}>
+              <div style={popupContainerStyle}>
+                {/* ชื่อแมว */}
+                <b style={{ ...popupNameStyle, color: cat.map_type === 'official' ? '#5180CE' : '#FF146E' }}>
                   {cat.name || "น้องแมวไม่มีชื่อ"}
                 </b>
+
+                {/* ปุ่มดูโปรไฟล์ (มินิมอลสไตล์) */}
+                <button 
+                  onClick={() => router.push(`/cat/${cat.id}`)}
+                  style={popupButtonStyle}
+                >
+                  ดูโปรไฟล์
+                </button>
               </div>
             </Popup>
           </Marker>
@@ -150,3 +154,39 @@ export default function Map({
     </MapContainer>
   );
 }
+
+// --- 🎨 Styles ---
+const popupContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '8px', // ระยะห่างระหว่างชื่อกับปุ่ม
+  fontFamily: 'var(--font-noto-looped)', // ใช้ฟอนต์ไทย
+};
+
+const popupNameStyle: React.CSSProperties = {
+  fontSize: '16px',
+  fontWeight: 'normal',
+  textAlign: 'center',
+  marginBottom: '2px',
+};
+
+const popupButtonStyle: React.CSSProperties = {
+  // สไตล์ตามสเปกที่คุณให้มา
+  backgroundColor: '#FFFAF1', // สีพื้นหลังด้านใน
+  color: '#CDBC8E', // สีตัวอักษร
+  border: '1px solid #CDBC8E', // สีกรอบ
+  
+  // ปรับให้เป็นปุ่มเล็กๆ
+  padding: '4px 12px',
+  fontSize: '12px',
+  borderRadius: '20px', // ขอบมน
+  
+  cursor: 'pointer',
+  fontFamily: 'var(--font-noto-looped)',
+  outline: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'opacity 0.2s',
+};

@@ -32,7 +32,7 @@ export default function Button({
         ...style, 
         fontFamily: "'Noto Looped Thai', sans-serif",
         fontSize: "14px", // 📏 ขนาดประมาณ 14px ตามต้องการ
-        fontWeight: "bold", // ✅ รักษาความหนาไว้เพื่อให้ปุ่มเด่น
+        fontWeight: "normal", // ✅ รักษาความหนาไว้เพื่อให้ปุ่มเด่น
       }} 
       className={`
         flex items-center justify-center

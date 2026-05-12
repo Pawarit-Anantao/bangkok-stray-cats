@@ -9,6 +9,9 @@ interface LoginModalProps {
   setEmail: (val: string) => void;
   password: string;
   setPassword: (val: string) => void;
+  // ✨ เพิ่มช่อง Username
+  username: string;
+  setUsername: (val: string) => void;
   loading: boolean;
   onLogin: (e: React.FormEvent) => void;
   onSignUp: (e: React.FormEvent) => void;
@@ -17,7 +20,9 @@ interface LoginModalProps {
 
 export default function LoginModal({
   isLogin, setIsLogin, email, setEmail,
-  password, setPassword, loading,
+  password, setPassword, 
+  username, setUsername, // ✨
+  loading,
   onLogin, onSignUp, onGuest
 }: LoginModalProps) {
   return (
@@ -25,33 +30,16 @@ export default function LoginModal({
       <style jsx>{`
         .interactive-btn { transition: all 0.2s ease; cursor: pointer; }
         .interactive-btn:active { transform: scale(0.96); filter: brightness(1.2); }
-        
-        /* ✨ นำ Focus Ring (Highlight) กลับมาแล้วครับ */
         .interactive-input { transition: border 0.3s ease; }
         .interactive-input:focus-within { border-color: rgba(255, 255, 255, 0.8) !important; }
-        
         .footer-link { cursor: pointer; transition: opacity 0.2s; }
         .footer-link:active { opacity: 0.6; transform: scale(0.98); }
-
-        /* ป้องกันสีพื้นหลังขาวตอน Autofill แต่ยังให้แสดงตัวหนังสือขาว */
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus, 
-        input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0px 1000px rgba(13, 48, 103, 0.8) inset !important;
-          -webkit-text-fill-color: white !important;
-          transition: background-color 5000s ease-in-out 0s;
-        }
-
-        input:focus {
-          outline: none !important;
-        }
+        input:focus { outline: none !important; }
       `}</style>
 
       <div style={cardFrame}>
         <div style={innerContentFrame}>
           
-          {/* Header */}
           <div style={headerFrame}>
             <div style={titleStack}>
               <div style={bebasTitle}>BANGKOK’S</div>
@@ -60,8 +48,24 @@ export default function LoginModal({
             <div style={thaiSubtitle}>แผนที่แมวจรจัด กรุงเทพฯ</div>
           </div>
 
-          {/* Form */}
           <form onSubmit={isLogin ? onLogin : onSignUp} style={formFrame}>
+            {/* ✨ เพิ่มฟิลด์ Username เฉพาะตอนสมัครสมาชิก */}
+            {!isLogin && (
+              <div style={inputGroupFrame}>
+                <label style={labelStyle}>ชื่อผู้ใช้ (Username)</label>
+                <div className="interactive-input" style={inputBox}>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    style={rawInput}
+                    required={!isLogin}
+                    placeholder="เช่น CatLover99"
+                  />
+                </div>
+              </div>
+            )}
+
             <div style={inputGroupFrame}>
               <label style={labelStyle}>อีเมล (Email)</label>
               <div className="interactive-input" style={inputBox}>
@@ -131,22 +135,22 @@ export default function LoginModal({
 
 // --- Styles (คงเดิม) ---
 const modalOverlayStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20, backgroundColor: "rgba(0, 0, 0, 0.05)" };
-const cardFrame: React.CSSProperties = { display: "flex", width: "300px", height: "450px", padding: "22px", flexDirection: "column", alignItems: "center", borderRadius: "16px", border: "0.5px solid rgba(255, 255, 255, 0.4)", background: "rgba(13, 48, 103, 0.5)", WebkitBackdropFilter: "blur(32px)", backdropFilter: "blur(16px)" };
+const cardFrame: React.CSSProperties = { display: "flex", width: "300px", minHeight: "450px", padding: "22px", flexDirection: "column", alignItems: "center", borderRadius: "16px", border: "0.5px solid rgba(255, 255, 255, 0.4)", background: "rgba(13, 48, 103, 0.5)", backdropFilter: "blur(16px)" };
 const innerContentFrame: React.CSSProperties = { display: "flex", width: "100%", flexDirection: "column", alignItems: "center" };
 const headerFrame: React.CSSProperties = { display: "flex", width: "100%", flexDirection: "column", alignItems: "center", marginBottom: "5px" };
 const titleStack: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: "flex-start", width: "fit-content" };
 const bebasTitle: React.CSSProperties = { color: "#000", fontFamily: "var(--font-bebas)", fontSize: "42px", lineHeight: "0.85", textShadow: "0px 0px 5px rgba(0, 0, 0, 0.3)" };
 const bebasTitleLower: React.CSSProperties = { ...bebasTitle, marginTop: "5px" };
 const thaiSubtitle: React.CSSProperties = { alignSelf: "stretch", color: "#FFF", fontFamily: "var(--font-noto-looped)", fontSize: "12px", fontWeight: 300, textAlign: "center", marginTop: "-6px" };
-const formFrame: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "2px", alignSelf: "stretch", marginTop: "10px" };
+const formFrame: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "10px", alignSelf: "stretch", marginTop: "10px" };
 const inputGroupFrame: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "3px", alignSelf: "stretch" };
 const labelStyle: React.CSSProperties = { color: "#FFF", fontFamily: "var(--font-noto-looped)", fontSize: "12px", fontWeight: 300 };
 const inputBox: React.CSSProperties = { display: "flex", height: "38px", padding: "0 10px", alignItems: "center", justifyContent: "space-between", borderRadius: "8px", border: "0.7px solid rgba(255, 255, 255, 0.3)", background: "rgba(0, 0, 0, 0.25)" };
 const rawInput: React.CSSProperties = { flex: 1, background: "none", border: "none", outline: "none", color: "#FFF", fontSize: "12px", fontWeight: 300 };
-const buttonGroupFrame: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "10px", alignSelf: "stretch", marginTop: "30px" };
+const buttonGroupFrame: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "10px", alignSelf: "stretch", marginTop: "20px" };
 const loginBtn: React.CSSProperties = { display: "flex", height: "38px", justifyContent: "center", alignItems: "center", borderRadius: "99px", background: "#000", border: "none" };
 const loginText: React.CSSProperties = { color: "#FFF", fontFamily: "var(--font-noto-looped)", fontSize: "12px", fontWeight: 300 };
-const dividerWrapper: React.CSSProperties = { display: "flex", alignItems: "center", gap: "8px" };
+const dividerWrapper: React.CSSProperties = { display: "flex", alignItems: "center", gap: '8px' };
 const dividerLine: React.CSSProperties = { flex: 1, height: "1px", background: "rgba(205, 219, 243, 0.25)" };
 const dividerText: React.CSSProperties = { color: "#CDDBF3", fontSize: "10px", fontWeight: 300 };
 const guestBtn: React.CSSProperties = { display: "flex", height: "38px", justifyContent: "center", alignItems: "center", borderRadius: "99px", background: "#FFF", border: "none" };

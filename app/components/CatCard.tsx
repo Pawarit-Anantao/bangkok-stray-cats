@@ -16,26 +16,39 @@ export default function CatCard({ catId, onBookmarkClick, onClick }: CatCardProp
   const [displayTags, setDisplayTags] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchFullCatData() {
       try {
         setLoading(true);
         
-        // 1. ดึงข้อมูลแมวและรูปภาพ
+        // 1. ดึง User ID ปัจจุบัน
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id || null;
+        setCurrentUserId(userId);
+
+        // 2. ดึงข้อมูลแมวและรูปภาพ
         const { data: catData, error: catError } = await supabase
           .from('cats')
-          .select(`
-            *,
-            cat_photos(public_url, is_primary)
-          `)
+          .select(`*, cat_photos(public_url, is_primary)`)
           .eq('id', catId)
           .single();
 
         if (catError) throw catError;
 
-        // 2. ดึงข้อมูล Tag ภาษาไทยจาก DB (ห้าม Hardcode)
-        // สร้าง Array ของ Key ที่เราต้องการหา Label ภาษาไทย
+        // 3. ✨ ดึงสถานะ Bookmark จริงจาก DB (เพื่อให้ซิงค์กับหน้า Profile)
+        if (userId) {
+          const { data: bookmark } = await supabase
+            .from('cat_bookmarks')
+            .select('id')
+            .eq('cat_id', catId)
+            .eq('user_id', userId)
+            .maybeSingle();
+          setIsBookmarked(!!bookmark);
+        }
+
+        // 4. ดึงข้อมูล Tag
         const tagKeys = [catData.pattern, catData.color, catData.gender].filter(
           (key) => key && key !== "unknown"
         );
@@ -60,6 +73,24 @@ export default function CatCard({ catId, onBookmarkClick, onClick }: CatCardProp
     if (catId) fetchFullCatData();
   }, [catId]);
 
+  // ✨ ฟังก์ชันจัดการ Bookmark ที่เชื่อมกับ Database
+  const handlePawsClick = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // กันไม่ให้กดแล้วเด้งไปหน้า Profile
+    if (!currentUserId) return alert("กรุณาเข้าสู่ระบบก่อนบันทึกนะครับ");
+
+    try {
+      if (isBookmarked) {
+        await supabase.from('cat_bookmarks').delete().eq('cat_id', catId).eq('user_id', currentUserId);
+      } else {
+        await supabase.from('cat_bookmarks').insert({ cat_id: catId, user_id: currentUserId });
+      }
+      setIsBookmarked(!isBookmarked);
+      onBookmarkClick?.(catId);
+    } catch (err) {
+      console.error("Error bookmarking:", err);
+    }
+  };
+
   if (loading) return <div style={{ ...cardContainerStyle, background: '#F5F5F5' }} />;
   if (!cat) return null;
 
@@ -68,23 +99,17 @@ export default function CatCard({ catId, onBookmarkClick, onClick }: CatCardProp
 
   return (
     <div style={cardContainerStyle} onClick={() => onClick?.(cat.id)}>
-      {/* 🖼️ ส่วนรูปภาพ (55% ≈ 123px) */}
       <div 
         style={{
           ...imageSectionStyle,
           backgroundImage: `url(${primaryPhoto || "/images/placeholder-cat.jpg"})`,
         }}
       >
-        <div style={pawsWrapperStyle} onClick={(e) => {
-          e.stopPropagation();
-          setIsBookmarked(!isBookmarked);
-          onBookmarkClick?.(cat.id);
-        }}>
+        <div style={pawsWrapperStyle} onClick={handlePawsClick}>
           <CatPaws size="small" isActive={isBookmarked} />
         </div>
       </div>
 
-      {/* 📝 ส่วนข้อมูล (45% ≈ 101px) */}
       <div style={infoSectionStyle}>
         <div style={headerStackStyle}>
           <div style={catNameStyle}>{cat.name || "น้องแมวไม่มีชื่อ"}</div>
@@ -93,12 +118,10 @@ export default function CatCard({ catId, onBookmarkClick, onClick }: CatCardProp
           </div>
         </div>
 
-        {/* รายละเอียดแมว (จำกัด 2 บรรทัด) */}
         <div style={descriptionStyle}>
           {cat.description || ""}
         </div>
 
-        {/* Tags จาก DB */}
         <div style={tagContainerStyle}>
           {displayTags.map((tag) => (
             <div key={tag.key} style={miniTagWrapper}>
@@ -115,12 +138,14 @@ export default function CatCard({ catId, onBookmarkClick, onClick }: CatCardProp
   );
 }
 
-// --- 🎨 Styles (Lock 224x161, Ratio 55/45) ---
+// --- 🎨 Styles (Font 400 & Variable) ---
+
+const FONT_VAR = 'var(--font-noto-looped)';
 
 const cardContainerStyle: React.CSSProperties = {
   display: 'flex',
   width: '161px',
-  height: '224px', // ล็อคความสูงตามสั่ง
+  height: '224px',
   flexDirection: 'column',
   borderRadius: '12px',
   background: '#FFF',
@@ -131,7 +156,7 @@ const cardContainerStyle: React.CSSProperties = {
 
 const imageSectionStyle: React.CSSProperties = {
   display: 'flex',
-  height: '123px', // 55% ของ 224px
+  height: '123px',
   padding: '8px',
   justifyContent: 'flex-end',
   alignItems: 'flex-start',
@@ -150,10 +175,10 @@ const pawsWrapperStyle: React.CSSProperties = {
 
 const infoSectionStyle: React.CSSProperties = {
   display: 'flex',
-  height: '101px', // 45% ของ 224px
+  height: '101px',
   padding: '10px 12px',
   flexDirection: 'column',
-  justifyContent: 'space-between', // กระจายเนื้อหาให้เต็มพื้นที่ 45%
+  justifyContent: 'space-between',
   alignItems: 'flex-start',
   alignSelf: 'stretch',
 };
@@ -167,9 +192,9 @@ const headerStackStyle: React.CSSProperties = {
 
 const catNameStyle: React.CSSProperties = {
   color: '#222',
-  fontFamily: '"Noto Looped Thai", sans-serif',
+  fontFamily: FONT_VAR,
   fontSize: '13px',
-  fontWeight: 600,
+  fontWeight: 400, // ปรับตามสั่ง
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
@@ -177,23 +202,24 @@ const catNameStyle: React.CSSProperties = {
 
 const locationStyle: React.CSSProperties = {
   color: '#888',
-  fontFamily: '"Noto Looped Thai", sans-serif',
+  fontFamily: FONT_VAR,
   fontSize: '9px',
   fontWeight: 400,
 };
 
 const descriptionStyle: React.CSSProperties = {
   color: '#555',
-  fontFamily: '"Noto Looped Thai", sans-serif',
+  fontFamily: FONT_VAR,
   fontSize: '10px',
+  fontWeight: 400,
   lineHeight: '1.4',
-  height: '28px', // ประมาณ 2 บรรทัด
+  height: '28px',
   overflow: 'hidden',
   display: '-webkit-box',
   WebkitLineClamp: 2,
   WebkitBoxOrient: 'vertical',
   margin: '4px 0',
-} as any; // ใช้ as any เพราะ Webkit properties บางอัน TS มองไม่เห็น
+} as any;
 
 const tagContainerStyle: React.CSSProperties = {
   display: 'flex',
@@ -204,7 +230,7 @@ const tagContainerStyle: React.CSSProperties = {
 };
 
 const miniTagWrapper: React.CSSProperties = {
-  transform: 'scale(0.7)', // ย่อลงอีกนิดเพื่อให้ยัด 3 อันไหวในความกว้าง 161px
+  transform: 'scale(0.7)',
   transformOrigin: 'left center',
   marginRight: '-12px', 
 };

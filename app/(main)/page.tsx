@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
 
+// Components
 import MapToggle from "../components/MapToggle";
 import AddButton from "../components/Map/components/AddButton";
 import MapHandle from "../components/MapHandle";
 import SearchBar from "../components/SearchBar";
 import CatCard from "../components/CatCard";
+import TagSelectionWindow from "../components/TagSelectionWindow";
 
 const MAP_HEIGHTS = ["60dvh", "20dvh", "2px"];
 const Map = dynamic(() => import("../components/Map"), {
@@ -24,9 +26,14 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isGuestUser, setIsGuestUser] = useState(false);
 
-  // ✨ State สำหรับข้อมูลแมว
-  const [allCatIds, setAllCatIds] = useState<any[]>([]); 
+  // ✨ State สำหรับข้อมูลแมวและแท็กทั้งหมดในระบบ
+  const [allCats, setAllCats] = useState<any[]>([]); 
+  const [allTags, setAllTags] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ✨ State สำหรับระบบ Tag Filter
+  const [selectedTags, setSelectedTags] = useState<any[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // ✨ State สำหรับ Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,22 +48,33 @@ export default function Home() {
       if (!session && !isGuest) {
         router.push("/login");
       } else {
-        fetchCatIds();
+        fetchInitialData();
       }
     };
     checkAccess();
   }, [router]);
 
-  const fetchCatIds = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      // 1. ดึงข้อมูลแมวทั้งหมด (รวม address_name/detail เพื่อใช้ค้นหาเขต/จังหวัด)
+      const { data: cats, error: catError } = await supabase
         .from('cats')
-        .select('id, name, address_name')
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setAllCatIds(data || []);
+      if (catError) throw catError;
+      setAllCats(cats || []);
+
+      // 2. ดึงข้อมูลแท็กทั้งหมดมาเตรียมไว้สำหรับหน้าต่าง Filter
+      const { data: tags, error: tagError } = await supabase
+        .from('cat_tags')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (tagError) throw tagError;
+      setAllTags(tags || []);
+
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -64,12 +82,28 @@ export default function Home() {
     }
   };
 
+  // ✨ Logic การกรองข้อมูล (Non-Hardcoded Search)
   const filteredCats = useMemo(() => {
-    return allCatIds.filter(cat => 
-      cat.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cat.address_name?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [allCatIds, searchQuery]);
+    return allCats.filter(cat => {
+      const query = searchQuery.toLowerCase();
+      
+      // 1. ค้นหาจาก Keyword: ชื่อแมว, เขต (address_name), และรายละเอียดที่อยู่ (address_detail)
+      // วิธีนี้ไม่ต้อง Hard Code รายชื่อเขต เพราะค้นหาจากสิ่งที่บันทึกมาจาก Geocoding จริงๆ
+      const matchText = 
+        cat.name?.toLowerCase().includes(query) || 
+        cat.address_name?.toLowerCase().includes(query) ||
+        cat.address_detail?.toLowerCase().includes(query);
+      
+      // 2. กรองตามแท็กที่เลือก: แมวต้องมีลักษณะหรือสุขภาพตรงกับแท็กที่เลือกทั้งหมด
+      const matchTags = selectedTags.length === 0 || 
+        selectedTags.every(t => 
+          [cat.pattern, cat.color, cat.gender, cat.fur_length, cat.size].includes(t.key) || 
+          (cat.last_health_tags?.split(',').includes(t.key))
+        );
+
+      return matchText && matchTags;
+    });
+  }, [allCats, searchQuery, selectedTags]);
 
   const paginatedCats = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -81,14 +115,22 @@ export default function Home() {
   const currentHeight = useMemo(() => MAP_HEIGHTS[mapState], [mapState]);
   const handleToggle = () => setMapState((prev) => (prev + 1) % 3);
 
+  // ✨ ฟังก์ชันจัดการการเลือก/ยกเลิกแท็ก
+  const handleToggleTag = (tag: any) => {
+    setSelectedTags(prev => 
+      prev.find(t => t.key === tag.key) 
+        ? prev.filter(t => t.key !== tag.key) 
+        : [...prev, tag]
+    );
+  };
+
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+    setCurrentPage(1); // รีเซ็ตหน้าเมื่อมีการค้นหาใหม่
+  }, [searchQuery, selectedTags]);
 
   return (
     <main style={mainLayout}>
       <section style={{ ...mapWrapper, height: currentHeight }}>
-        {/* ✨ ส่ง mapMode เข้าไปในคอมโพเนนต์ Map เพื่อใช้กรองแมว Official/Community */}
         <Map showMarkers={true} mode={mapMode} />
         
         {mapState === 0 && (
@@ -104,13 +146,20 @@ export default function Home() {
 
       <section style={contentWrapper}>
         <div style={searchContainer}>
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
+          {/* ✨ SearchBar เวอร์ชั่นใหม่ที่รับ Selected Tags เข้าไปแสดงผลใต้ช่องค้นหา */}
+          <SearchBar 
+            value={searchQuery} 
+            onChange={setSearchQuery}
+            selectedTags={selectedTags}
+            onRemoveTag={(key) => setSelectedTags(prev => prev.filter(t => t.key !== key))}
+            onOpenFilter={() => setIsFilterOpen(true)}
+          />
         </div>
 
         {loading ? (
-          <div style={statusTextStyle}>กำลังเรียกน้องแมว... 🐾</div>
+          <div style={statusTextStyle}>กำลังเรียกน้องแมว...</div>
         ) : (
-          <div style={scrollArea}>
+          <div id="scroll-root" style={scrollArea}>
             {paginatedCats.length > 0 ? (
               <>
                 <div style={catGridWrapper}>
@@ -145,17 +194,33 @@ export default function Home() {
               </>
             ) : (
               <div style={statusTextStyle}>
-                {!searchQuery ? "ไม่พบข้อมูลแมวในระบบ" : `ไม่พบผลการค้นหาสำหรับ "${searchQuery}"`}
+                {!searchQuery && selectedTags.length === 0 
+                  ? "ไม่พบข้อมูลแมวในระบบ" 
+                  : "ไม่พบแมวที่ตรงกับเงื่อนไขการค้นหา"}
               </div>
             )}
           </div>
         )}
       </section>
+
+      {/* ✨ หน้าต่างเลือกแท็ก Filter (Reuse Component เดิม) */}
+      {isFilterOpen && (
+        <TagSelectionWindow 
+          categoryLabel="เลือกแท็กลักษณะแมว"
+          tags={allTags}
+          selectedKeys={selectedTags.map(t => t.key)}
+          onToggle={(key) => {
+            const tag = allTags.find(t => t.key === key);
+            if (tag) handleToggleTag(tag);
+          }}
+          onClose={() => setIsFilterOpen(false)}
+        />
+      )}
     </main>
   );
 }
 
-// --- 🎨 Styles (คงเดิม) ---
+// --- 🎨 Styles ---
 const mainLayout: React.CSSProperties = { display: 'flex', flexDirection: 'column', width: '100%', height: '100dvh', overflow: 'hidden', backgroundColor: '#F5F0E6' };
 const mapWrapper: React.CSSProperties = { position: 'relative', width: '100%', transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)', zIndex: 10, backgroundColor: '#E8E4D9', flexShrink: 0 };
 const overlayContainer: React.CSSProperties = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 1000 };
@@ -163,17 +228,17 @@ const togglePos: React.CSSProperties = { position: 'absolute', top: '16px', left
 
 const contentWrapper: React.CSSProperties = { 
   flex: 1, 
-  padding: '40px 0 20px 0', 
+  padding: '40px 0 0px 0', 
   display: 'flex', 
   flexDirection: 'column', 
   alignItems: 'center',
   overflow: 'hidden'
 };
 
-const searchContainer: React.CSSProperties = { width: '100%', maxWidth: '340px', padding: '0 10px 20px 10px', flexShrink: 0 };
+const searchContainer: React.CSSProperties = { width: '100%', maxWidth: '340px', padding: '0 10px 10px 10px', flexShrink: 0 };
 const scrollArea: React.CSSProperties = { flex: 1, width: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 15px' };
 const catGridWrapper: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, 161px)', justifyContent: 'center', gap: '12px', width: '100%', paddingBottom: '20px' };
-const paginationNav: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '15px', padding: '20px 0 40px 0' };
+const paginationNav: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '15px', padding: '20px 0 60px 0' };
 const pageBtn: React.CSSProperties = { padding: '6px 12px', borderRadius: '8px', border: '1px solid #8F8362', background: '#FFF', color: '#8F8362', fontSize: '12px', cursor: 'pointer' };
 const pageInfo: React.CSSProperties = { fontSize: '13px', color: '#8F8362', fontFamily: 'var(--font-noto-looped)' };
 const statusTextStyle: React.CSSProperties = { marginTop: '30px', color: '#8F8362', fontSize: '14px', opacity: 0.6, fontFamily: 'var(--font-noto-looped)' };

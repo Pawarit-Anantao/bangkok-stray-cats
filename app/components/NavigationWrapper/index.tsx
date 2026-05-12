@@ -1,16 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import NavigationBar from "../NavigationBar";
 import Sidebar from "../Sidebar";
 
 export default function NavigationWrapper() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // ✨ State สำหรับรูป
+
+  // ✨ ฟังก์ชันดึงโปรไฟล์จากตาราง public.users
+  const fetchUserProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('users')
+      .select('avatar_url')
+      .eq('id', userId)
+      .single();
+    setAvatarUrl(data?.avatar_url || null);
+  };
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const loggedIn = !!session;
+      setIsLoggedIn(loggedIn);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      }
+    };
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const loggedIn = !!session;
+      setIsLoggedIn(loggedIn);
+      if (loggedIn && session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setAvatarUrl(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <>
       <NavigationBar
-        isLoggedIn={false}
+        isLoggedIn={isLoggedIn}
+        avatarUrl={avatarUrl} // ✨ ส่งรูปโปรไฟล์จริงไปแสดง
         isMenuOpen={isSidebarOpen}
         onMenuClick={() => setIsSidebarOpen((open) => !open)}
       />

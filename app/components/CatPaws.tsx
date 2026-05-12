@@ -38,14 +38,14 @@ export default function CatPaws({
     background: 'rgba(255, 255, 255, 0.80)',
     boxShadow: '1px 2px 4px 0 #FFF inset',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.002s ease',
     outline: 'none',
     borderStyle: 'solid'
   };
 
   const svgStyle: React.CSSProperties = {
     filter: isActive ? 'drop-shadow(0 0 1.6px rgba(255, 130, 158, 0.83))' : 'none',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.002s ease',
     flexShrink: 0
   };
 

@@ -1,25 +1,42 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// ✨ กำหนดเมนูพร้อมเส้นทาง
 const MENU_ITEMS = [
-  "บทความ",
-  "แมวของคุณ",
-  "แมวที่บันทึกไว้",
-  "บัญชีของคุณ",
-  "ออกจากระบบ",
+  { label: "หน้าแรก", path: "/" },
+  { label: "บทความ", path: "/articles" },
+  { label: "แมวของคุณ", path: "/my-cats" },
+  { label: "แมวที่บันทึกไว้", path: "/bookmarks" },
+  { label: "บัญชีของคุณ", path: "/account" },
 ] as const;
 
-const MENU_ROW_CLASS =
-  "flex items-center w-full pb-2 border-b border-white text-white bg-transparent cursor-pointer transition-colors hover:bg-white/10 hover:text-[#FF146E] hover:border-[#FF146E] active:bg-white/20 active:text-[#FF146E] active:border-[#FF146E]";
-
-const LABEL_CLASS =
-  "flex-1 text-inherit text-[14px] font-normal leading-normal whitespace-nowrap overflow-hidden text-ellipsis";
-
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const router = useRouter();
+
+  const handleNavigation = (path: string) => {
+    router.push(path);
+    onClose(); // ปิด Sidebar หลังกดเมนู
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      alert("เกิดข้อผิดพลาดในการออกจากระบบ: " + error.message);
+    } else {
+      localStorage.removeItem("guest_mode");
+      router.refresh(); // รีเฟรชสถานะหน้าเว็บ
+      router.push("/login");
+      onClose();
+    }
+  };
+
   const overlayClasses = [
     "absolute inset-0 bg-black/50 z-40 transition-opacity duration-300",
     isOpen ? "opacity-100 visible" : "opacity-0 invisible",
@@ -41,12 +58,32 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         <nav className="flex flex-col gap-[20px] w-full mt-2">
           {MENU_ITEMS.map((item) => (
-            <div key={item} className={MENU_ROW_CLASS}>
-              <span className={LABEL_CLASS}>{item}</span>
+            <div 
+              key={item.label} 
+              className={MENU_ROW_CLASS}
+              onClick={() => handleNavigation(item.path)}
+            >
+              <span className={LABEL_CLASS}>{item.label}</span>
             </div>
           ))}
+
+          {/* ✨ แยกปุ่มออกจากระบบมาจัดการฟังก์ชันพิเศษ */}
+          <div 
+            className={MENU_ROW_CLASS} 
+            onClick={handleLogout}
+            style={{ borderBottom: 'none', marginTop: '10px' }}
+          >
+            <span className={`${LABEL_CLASS} text-[#FF829E]`}>ออกจากระบบ</span>
+          </div>
         </nav>
       </aside>
     </>
   );
 }
+
+// --- Styles (คงเดิมจากไฟล์ที่คุณส่งมา) ---
+const MENU_ROW_CLASS =
+  "flex items-center w-full pb-2 border-b border-white text-white bg-transparent cursor-pointer transition-colors hover:bg-white/10 hover:text-[#FF146E] hover:border-[#FF146E] active:bg-white/20 active:text-[#FF146E] active:border-[#FF146E]";
+
+const LABEL_CLASS =
+  "flex-1 text-inherit text-[14px] font-normal leading-normal whitespace-nowrap overflow-hidden text-ellipsis";
