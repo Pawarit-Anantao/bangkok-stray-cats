@@ -8,21 +8,22 @@ import Sidebar from "../Sidebar";
 export default function NavigationWrapper() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // ✨ State สำหรับรูป
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // ✨ ฟังก์ชันดึงโปรไฟล์จากตาราง public.users
   const fetchUserProfile = async (userId: string) => {
     const { data } = await supabase
-      .from('users')
-      .select('avatar_url')
-      .eq('id', userId)
+      .from("users")
+      .select("avatar_url")
+      .eq("id", userId)
       .single();
     setAvatarUrl(data?.avatar_url || null);
   };
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const loggedIn = !!session;
       setIsLoggedIn(loggedIn);
       if (session?.user) {
@@ -31,7 +32,9 @@ export default function NavigationWrapper() {
     };
     checkUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const loggedIn = !!session;
       setIsLoggedIn(loggedIn);
       if (loggedIn && session?.user) {
@@ -48,7 +51,7 @@ export default function NavigationWrapper() {
     <>
       <NavigationBar
         isLoggedIn={isLoggedIn}
-        avatarUrl={avatarUrl} // ✨ ส่งรูปโปรไฟล์จริงไปแสดง
+        avatarUrl={avatarUrl}
         isMenuOpen={isSidebarOpen}
         onMenuClick={() => setIsSidebarOpen((open) => !open)}
       />

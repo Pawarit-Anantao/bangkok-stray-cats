@@ -19,7 +19,7 @@ export default function Button({
   disabled = false,
   className = "",
   type = "button",
-  style, 
+  style,
 }: ButtonProps) {
   return (
     <button
@@ -28,12 +28,12 @@ export default function Button({
       disabled={disabled}
       // 💡 รวมสไตล์ที่ส่งมา + บังคับใช้ฟอนต์ Noto Looped Thai ขนาด 14px ตรงนี้เลย
       // 💡 โดยไม่ต้องไปแก้ tailwind config
-      style={{ 
-        ...style, 
+      style={{
+        ...style,
         fontFamily: "'Noto Looped Thai', sans-serif",
         fontSize: "14px", // 📏 ขนาดประมาณ 14px ตามต้องการ
         fontWeight: "normal", // ✅ รักษาความหนาไว้เพื่อให้ปุ่มเด่น
-      }} 
+      }}
       className={`
         flex items-center justify-center
         min-w-[162px] px-6 py-[10px] rounded-[24px]
@@ -41,9 +41,10 @@ export default function Button({
         text-black 
         transition-colors duration-150
         disabled:opacity-40 disabled:cursor-not-allowed
-        ${variant === "primary"
-          ? "bg-[#FFFAF0] hover:bg-[#EEE5D0] active:bg-[#DDD4BC]"
-          : "bg-transparent hover:bg-[#655E4C]/10 active:bg-[#655E4C]/20"
+        ${
+          variant === "primary"
+            ? "bg-[#FFFAF0] hover:bg-[#EEE5D0] active:bg-[#DDD4BC]"
+            : "bg-transparent hover:bg-[#655E4C]/10 active:bg-[#655E4C]/20"
         }
         ${className}
       `}

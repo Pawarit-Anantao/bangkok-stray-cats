@@ -32,39 +32,72 @@ export default function LocateButton({ onLocationFound }: LocateButtonProps) {
       () => {
         alert("ไม่สามารถเข้าถึงตำแหน่งของคุณได้ โปรดเช็คการตั้งค่าสิทธิ์ครับ");
       },
-      { enableHighAccuracy: true } // 💡 ช่วยให้ตำแหน่งแม่นยำขึ้น
+      { enableHighAccuracy: true }, // 💡 ช่วยให้ตำแหน่งแม่นยำขึ้น
     );
   };
 
   return (
-    <div 
+    <div
       style={{
-        position: 'absolute',
-        bottom: '16px',
-        left: '16px',
+        position: "absolute",
+        bottom: "16px",
+        left: "16px",
         zIndex: 1000,
-        display: 'inline-flex',
-        height: '38px',
-        width: '38px',
-        padding: '8px',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: '99px',
-        background: '#FFF',
-        boxShadow: '0 0 8px 0 rgba(0, 0, 0, 0.60)',
-        cursor: 'pointer',
-        border: 'none',
+        display: "inline-flex",
+        height: "38px",
+        width: "38px",
+        padding: "8px",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "99px",
+        background: "#FFF",
+        boxShadow: "0 0 8px 0 rgba(0, 0, 0, 0.60)",
+        cursor: "pointer",
+        border: "none",
       }}
       onClick={handleLocate}
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="32"
+        height="32"
+        viewBox="0 0 24 24"
+        fill="none"
+      >
         {/* ✨ แก้ไขจาก stroke-width เป็น strokeWidth และ stroke-linecap เป็น strokeLinecap */}
-        <circle cx="12" cy="12" r="7" stroke="#5180CE" strokeWidth="2"/>
-        <circle cx="12" cy="12" r="2" fill="#5180CE" stroke="#5180CE" strokeWidth="2"/>
-        <path d="M12 5V3" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
-        <path d="M19 12L21 12" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
-        <path d="M12 21L12 19" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
-        <path d="M3 12H5" stroke="#5180CE" strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="12" cy="12" r="7" stroke="#5180CE" strokeWidth="2" />
+        <circle
+          cx="12"
+          cy="12"
+          r="2"
+          fill="#5180CE"
+          stroke="#5180CE"
+          strokeWidth="2"
+        />
+        <path
+          d="M12 5V3"
+          stroke="#5180CE"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M19 12L21 12"
+          stroke="#5180CE"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M12 21L12 19"
+          stroke="#5180CE"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M3 12H5"
+          stroke="#5180CE"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
       </svg>
     </div>
   );

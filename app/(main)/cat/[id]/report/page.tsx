@@ -22,99 +22,123 @@ export default function ReportSightingPage() {
 
   const [mapState, setMapState] = useState(0);
   const [center, setCenter] = useState({ lat: 13.7649, lng: 100.5383 });
-  const [addressData, setAddressData] = useState({ name: "", detail: "" }); // ✨ เก็บข้อมูลสถานที่ที่ปัก
+  const [addressData, setAddressData] = useState({ name: "", detail: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [healthTags, setHealthTags] = useState<any[]>([]);
 
-  // Form Fields - เน้นเฉพาะข้อมูลสำหรับการพบเห็น
   const [healthNote, setHealthInfo] = useState("");
-  const [extraNote, setExtraInfo] = useState(""); // เก็บข้อมูลเพิ่มเติมจากการพบเห็น (note)
+  const [extraNote, setExtraInfo] = useState("");
   const [aggressiveness, setAggressiveness] = useState<string | null>(null);
-  const [selectedHealthTags, setSelectedTags] = useState<{ [key: string]: string[] }>({
-    health: []
+  const [selectedHealthTags, setSelectedTags] = useState<{
+    [key: string]: string[];
+  }>({
+    health: [],
   });
 
   useEffect(() => {
     const fetchInitial = async () => {
-      // 1. ดึงพิกัด Master เดิมมาเป็นจุดเริ่มต้นในแผนที่
-      const { data: catData } = await supabase.from('cats').select('lat, lng').eq('id', id).single();
+      const { data: catData } = await supabase
+        .from("cats")
+        .select("lat, lng")
+        .eq("id", id)
+        .single();
       if (catData) setCenter({ lat: catData.lat, lng: catData.lng });
-      
-      // 2. ดึงป้ายกำกับเฉพาะหมวดสุขภาพมาใช้
+
       const { data: tags } = await supabase
-        .from('cat_tags')
-        .select('*')
-        .eq('category', 'health')
-        .eq('is_active', true);
+        .from("cat_tags")
+        .select("*")
+        .eq("category", "health")
+        .eq("is_active", true);
       if (tags) setHealthTags(tags);
     };
     fetchInitial();
   }, [id]);
 
-  // ✨ ระบบดึงชื่อสถานที่ (Reverse Geocoding) อัตโนมัติเมื่อขยับหมุด
   useEffect(() => {
     const fetchAddress = async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${center.lat}&lon=${center.lng}&accept-language=th`
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${center.lat}&lon=${center.lng}&accept-language=th`,
         );
         const data = await res.json();
         if (data && data.address) {
-          const district = data.address.city || data.address.suburb || data.address.district || "ไม่ระบุเขต";
+          const district =
+            data.address.city ||
+            data.address.suburb ||
+            data.address.district ||
+            "ไม่ระบุเขต";
           setAddressData({
             name: district,
-            detail: data.display_name
+            detail: data.display_name,
           });
         }
       } catch (err) {
         console.error("Geocoding error:", err);
       }
     };
-    const timer = setTimeout(fetchAddress, 800); // Debounce ป้องกันการยิง API ถี่เกินไป
+    const timer = setTimeout(fetchAddress, 800);
     return () => clearTimeout(timer);
   }, [center]);
 
   const handleReport = async () => {
     try {
       setIsSubmitting(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("กรุณาเข้าสู่ระบบก่อนครับ");
 
-      const score = aggressiveness === 'very_friendly' ? 1 : aggressiveness === 'chill' ? 2 : aggressiveness === 'normal' ? 3 : aggressiveness === 'timid' ? 4 : 5;
+      const score =
+        aggressiveness === "very_friendly"
+          ? 1
+          : aggressiveness === "chill"
+            ? 2
+            : aggressiveness === "normal"
+              ? 3
+              : aggressiveness === "timid"
+                ? 4
+                : 5;
 
-      // 1. บันทึกลง cat_sightings (เป็นประวัติการรายงานพร้อมข้อมูลสถานที่)
-      const { data: sighting, error: sError } = await supabase.from('cat_sightings').insert({
-        cat_id: id,
-        user_id: user.id,
-        lat: center.lat,
-        lng: center.lng,
-        health_note: healthNote,
-        note: extraNote,
-        aggression_score: aggressiveness ? score : null,
-        report_type: 'sighting',
-        address_name: addressData.name, // ✨ บันทึกชื่อเขตที่ได้จาก Geocoding
-        address_detail: addressData.detail
-      }).select().single();
+      const { data: sighting, error: sError } = await supabase
+        .from("cat_sightings")
+        .insert({
+          cat_id: id,
+          user_id: user.id,
+          lat: center.lat,
+          lng: center.lng,
+          health_note: healthNote,
+          note: extraNote,
+          aggression_score: aggressiveness ? score : null,
+          report_type: "sighting",
+          address_name: addressData.name,
+          address_detail: addressData.detail,
+        })
+        .select()
+        .single();
 
       if (sError) throw sError;
 
-      // 2. เชื่อมโยง Health Tags กับการรายงานครั้งนี้
       if (selectedHealthTags.health.length > 0) {
-        const hEntries = selectedHealthTags.health.map(t => ({ sighting_id: sighting.id, tag_key: t }));
-        await supabase.from('sighting_health_tags').insert(hEntries);
+        const hEntries = selectedHealthTags.health.map((t) => ({
+          sighting_id: sighting.id,
+          tag_key: t,
+        }));
+        await supabase.from("sighting_health_tags").insert(hEntries);
       }
 
-      // 3. อัปเดตข้อมูลสรุปล่าสุดลง Master (cats) เพื่อใช้แสดงผลหน้า Profile/Card
-      await supabase.from('cats').update({
-        last_seen_at: new Date().toISOString(),
-        last_health_note: healthNote,
-        last_aggression_score: aggressiveness ? score : null,
-        last_health_tags: selectedHealthTags.health.join(','),
-        address_name: addressData.name, // อัปเดตเพื่อให้หน้า Card แสดงพิกัดล่าสุดได้
-        address_detail: addressData.detail,
-        lat: center.lat, // อัปเดตพิกัดเพื่อให้หมุดบนแผนที่หลักขยับตามการรายงานล่าสุด
-        lng: center.lng
-      }).eq('id', id);
+      await supabase
+        .from("cats")
+        .update({
+          last_seen_at: new Date().toISOString(),
+          last_health_note: healthNote,
+          last_aggression_score: aggressiveness ? score : null,
+          last_health_tags: selectedHealthTags.health.join(","),
+          address_name: addressData.name,
+          address_detail: addressData.detail,
+          lat: center.lat,
+          lng: center.lng,
+        })
+        .eq("id", id);
 
       alert("บันทึกประวัติการพบเห็นเรียบร้อยแล้วครับ! 🐾");
       router.push(`/cat/${id}`);
@@ -133,22 +157,30 @@ export default function ReportSightingPage() {
         <Map isPickerMode={true} onCenterChange={setCenter} />
         {mapState !== 2 && (
           <div style={flagContainerStyle}>
-            <img src="/Flag.svg" alt="Flag" style={{ width: '40px', height: '40px' }} />
+            <img
+              src="/Flag.svg"
+              alt="Flag"
+              style={{ width: "40px", height: "40px" }}
+            />
           </div>
         )}
-        <MapHandle state={mapState} onClick={() => setMapState(p => (p + 1) % 3)} />
-        <button onClick={() => router.back()} style={backCircleBtn}>✕</button>
+        <MapHandle
+          state={mapState}
+          onClick={() => setMapState((p) => (p + 1) % 3)}
+        />
+        <button onClick={() => router.back()} style={backCircleBtn}>
+          ✕
+        </button>
       </section>
 
       <section style={contentWrapper}>
         <div style={innerForm}>
-          {/* แสดงพิกัดและชื่อเขตที่ดึงมาได้ */}
           <LocationDisplay lat={center.lat} lng={center.lng} />
-          
+
           <div style={sectionSpacer}>
             <h2 style={sectionHeaderStyle}>บันทึกข้อมูลการพบเห็น</h2>
-            <AttributeSection 
-              allTags={healthTags} 
+            <AttributeSection
+              allTags={healthTags}
               selectedTags={selectedHealthTags}
               setSelectedTags={setSelectedTags as any}
               aggressiveness={aggressiveness}
@@ -157,14 +189,25 @@ export default function ReportSightingPage() {
               setHealthInfo={setHealthInfo}
               extraInfo={extraNote}
               setExtraInfo={setExtraInfo}
-              isSightingMode={true} // ✨ เปิดโหมดรายงาน (ซ่อน Master Data อื่นๆ)
-              catInfo="" setCatInfo={() => {}} 
+              isSightingMode={true}
+              catInfo=""
+              setCatInfo={() => {}}
             />
           </div>
 
           <div style={btnGroup}>
-            <Button variant="ghost" onClick={() => router.back()} style={{ flex: 1 }}>ยกเลิก</Button>
-            <Button onClick={handleReport} disabled={isSubmitting} style={{ flex: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={() => router.back()}
+              style={{ flex: 1 }}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleReport}
+              disabled={isSubmitting}
+              style={{ flex: 1 }}
+            >
               {isSubmitting ? "กำลังบันทึก..." : "ยืนยันการพบ"}
             </Button>
           </div>
@@ -174,16 +217,78 @@ export default function ReportSightingPage() {
   );
 }
 
-// --- 🎨 Styles (Font 400 & Noto Looped) ---
-const FONT_VAR = 'var(--font-noto-looped)';
+const FONT_VAR = "var(--font-noto-looped)";
 
-const mainLayout: React.CSSProperties = { display: 'flex', flexDirection: 'column', height: '100dvh', background: '#F5F0E6', overflow: 'hidden', fontFamily: FONT_VAR };
-const mapWrapper: React.CSSProperties = { position: 'relative', width: '100%', transition: 'height 0.4s ease' };
-const contentWrapper: React.CSSProperties = { flex: 1, overflowY: 'auto', padding: '20px' };
-const innerForm: React.CSSProperties = { maxWidth: '340px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' };
-const btnGroup: React.CSSProperties = { display: 'flex', gap: '15px', marginTop: '20px', paddingBottom: '40px' };
-const sectionSpacer: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '10px' };
-const sectionHeaderStyle: React.CSSProperties = { fontSize: '20px', fontWeight: 400, color: '#000', margin: 0 };
-const flagContainerStyle: React.CSSProperties = { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -100%)', zIndex: 1001, pointerEvents: 'none' };
-const backCircleBtn: React.CSSProperties = { position: 'absolute', top: '15px', left: '15px', zIndex: 1002, background: '#FFF', borderRadius: '50%', width: '36px', height: '36px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const loadingStyle: React.CSSProperties = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100dvh', color: '#8F8362' };
+const mainLayout: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  height: "100dvh",
+  background: "#F5F0E6",
+  overflow: "hidden",
+  fontFamily: FONT_VAR,
+};
+const mapWrapper: React.CSSProperties = {
+  position: "relative",
+  width: "100%",
+  transition: "height 0.4s ease",
+};
+const contentWrapper: React.CSSProperties = {
+  flex: 1,
+  overflowY: "auto",
+  padding: "20px",
+};
+const innerForm: React.CSSProperties = {
+  maxWidth: "340px",
+  margin: "0 auto",
+  display: "flex",
+  flexDirection: "column",
+  gap: "20px",
+};
+const btnGroup: React.CSSProperties = {
+  display: "flex",
+  gap: "15px",
+  marginTop: "20px",
+  paddingBottom: "40px",
+};
+const sectionSpacer: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+};
+const sectionHeaderStyle: React.CSSProperties = {
+  fontSize: "20px",
+  fontWeight: 400,
+  color: "#000",
+  margin: 0,
+};
+const flagContainerStyle: React.CSSProperties = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -100%)",
+  zIndex: 1001,
+  pointerEvents: "none",
+};
+const backCircleBtn: React.CSSProperties = {
+  position: "absolute",
+  top: "15px",
+  left: "15px",
+  zIndex: 1002,
+  background: "#FFF",
+  borderRadius: "50%",
+  width: "36px",
+  height: "36px",
+  border: "none",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+const loadingStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  height: "100dvh",
+  color: "#8F8362",
+};

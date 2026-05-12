@@ -58,8 +58,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         <nav className="flex flex-col gap-[20px] w-full mt-2">
           {MENU_ITEMS.map((item) => (
-            <div 
-              key={item.label} 
+            <div
+              key={item.label}
               className={MENU_ROW_CLASS}
               onClick={() => handleNavigation(item.path)}
             >
@@ -68,10 +68,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           ))}
 
           {/* ✨ แยกปุ่มออกจากระบบมาจัดการฟังก์ชันพิเศษ */}
-          <div 
-            className={MENU_ROW_CLASS} 
+          <div
+            className={MENU_ROW_CLASS}
             onClick={handleLogout}
-            style={{ borderBottom: 'none', marginTop: '10px' }}
+            style={{ borderBottom: "none", marginTop: "10px" }}
           >
             <span className={`${LABEL_CLASS} text-[#FF829E]`}>ออกจากระบบ</span>
           </div>
@@ -81,7 +81,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   );
 }
 
-// --- Styles (คงเดิมจากไฟล์ที่คุณส่งมา) ---
 const MENU_ROW_CLASS =
   "flex items-center w-full pb-2 border-b border-white text-white bg-transparent cursor-pointer transition-colors hover:bg-white/10 hover:text-[#FF146E] hover:border-[#FF146E] active:bg-white/20 active:text-[#FF146E] active:border-[#FF146E]";
 

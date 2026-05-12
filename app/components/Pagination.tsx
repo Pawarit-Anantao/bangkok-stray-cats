@@ -8,7 +8,11 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export default function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
+export default function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: PaginationProps) {
   if (totalPages <= 1) return null; // ไม่ต้องโชว์ถ้ามีหน้าเดียว
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -16,7 +20,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
   return (
     <div style={containerStyle}>
       {/* ปุ่มย้อนกลับ */}
-      <button 
+      <button
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
         style={{ ...btnStyle, opacity: currentPage === 1 ? 0.3 : 1 }}
@@ -53,25 +57,25 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
 }
 
 const containerStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  gap: '8px',
-  marginTop: '20px',
-  paddingBottom: '40px',
-  width: '100%',
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: "8px",
+  marginTop: "20px",
+  paddingBottom: "40px",
+  width: "100%",
 };
 
 const btnStyle: React.CSSProperties = {
-  width: '32px',
-  height: '32px',
-  borderRadius: '50%',
-  border: '1.5px solid #8F8362',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  fontSize: '12px',
-  transition: 'all 0.2s ease',
-  backgroundColor: 'transparent',
+  width: "32px",
+  height: "32px",
+  borderRadius: "50%",
+  border: "1.5px solid #8F8362",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  fontSize: "12px",
+  transition: "all 0.2s ease",
+  backgroundColor: "transparent",
 };
